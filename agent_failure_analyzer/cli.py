@@ -11,6 +11,7 @@ Commands:
     afa taxonomy                Show the failure taxonomy
     afa dashboard <path>        Launch the web dashboard
     afa replay <path>           Step through session events interactively
+    afa explain <path> <N>      Detailed explanation of failure #N
     afa remediate <path>        Show fix suggestions for detected failures
     afa correlate <path>        Detect cross-session failure patterns
     afa anonymize <path>        Strip PII and secrets from logs
@@ -893,6 +894,111 @@ def remediate(path: str, min_severity: str):
             suggestions = get_remediation(f.subcategory)
             for s in suggestions:
                 console.print(f"     [green]→[/green] {s}")
+
+
+# ── explain ──────────────────────────────────────────────────────────
+
+@main.command()
+@click.argument("path", type=click.Path(exists=True))
+@click.argument("failure_index", type=int)
+@click.option(
+    "--session-index", "-s", type=int, default=0,
+    help="Session index when file contains multiple sessions (0-based).",
+)
+def explain(path: str, failure_index: int, session_index: int):
+    """Show a detailed explanation and remediation for a specific failure.
+
+    FAILURE_INDEX is the 1-based index of the failure from the analysis report.
+
+    \b
+    Example:
+        afa analyze session.jsonl          # see numbered failures
+        afa explain session.jsonl 1        # explain failure #1 in detail
+    """
+    from .remediation import get_remediation
+    from .taxonomy import CATEGORY_DESCRIPTIONS, SUBCATEGORY_TO_CATEGORY
+
+    engine = AnalysisEngine()
+    results = engine.analyze_file(path)
+
+    if not results:
+        console.print("[yellow]No sessions found.[/yellow]")
+        return
+
+    if session_index >= len(results):
+        console.print(
+            f"[red]Session index {session_index} out of range "
+            f"(file has {len(results)} session(s)).[/red]"
+        )
+        return
+
+    result = results[session_index]
+
+    if not result.failures:
+        console.print("[green]No failures detected in this session.[/green]")
+        return
+
+    if failure_index < 1 or failure_index > len(result.failures):
+        console.print(
+            f"[red]Failure index {failure_index} out of range "
+            f"(session has {len(result.failures)} failure(s), use 1-{len(result.failures)}).[/red]"
+        )
+        return
+
+    failure = result.failures[failure_index - 1]
+    category = SUBCATEGORY_TO_CATEGORY.get(failure.subcategory, failure.category)
+    category_desc = CATEGORY_DESCRIPTIONS.get(category, "")
+    suggestions = get_remediation(failure.subcategory)
+
+    # Header
+    console.print(f"\n[bold]Failure #{failure_index} — Detailed Explanation[/bold]")
+    console.print(f"  Session: {result.session.session_id}")
+    console.print()
+
+    # Classification
+    sev_colors = {"critical": "bold red", "high": "red", "medium": "yellow", "low": "cyan", "info": "dim"}
+    sev_style = sev_colors.get(failure.severity.value, "")
+    console.print(f"  [bold]Category:[/bold]     {category.value}")
+    console.print(f"  [bold]Subcategory:[/bold]  {failure.subcategory.value}")
+    console.print(f"  [bold]Severity:[/bold]     [{sev_style}]{failure.severity.value.upper()}[/{sev_style}]")
+    console.print(f"  [bold]Confidence:[/bold]   {failure.confidence:.0%}")
+    console.print()
+
+    # Description
+    console.print(f"  [bold]What happened:[/bold]")
+    console.print(f"    {failure.description}")
+    console.print()
+
+    # Category context
+    if category_desc:
+        console.print(f"  [bold]About {category.value}:[/bold]")
+        console.print(f"    {category_desc}")
+        console.print()
+
+    # Evidence
+    if failure.evidence:
+        console.print(f"  [bold]Evidence:[/bold]")
+        for i, ev in enumerate(failure.evidence, 1):
+            console.print(f"    {i}. {ev[:120]}")
+        console.print()
+
+    # Event context
+    if failure.event_indices:
+        console.print(f"  [bold]Related events:[/bold] (indices {failure.event_indices})")
+        for idx in failure.event_indices[:5]:
+            if 0 <= idx < len(result.session.events):
+                evt = result.session.events[idx]
+                label = evt.event_type.value
+                snippet = evt.content[:80] if evt.content else ""
+                tool = f" ({evt.tool_name})" if evt.tool_name else ""
+                console.print(f"    [{idx}] {label}{tool}: {snippet}")
+        console.print()
+
+    # Remediation
+    console.print(f"  [bold]How to fix:[/bold]")
+    for s in suggestions:
+        console.print(f"    [green]\u2192[/green] {s}")
+    console.print()
 
 
 # ── correlate ────────────────────────────────────────────────────────

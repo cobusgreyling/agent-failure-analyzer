@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+  afa-dashboard:
+    build: .
+    container_name: afa-dashboard
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./sample_logs:/logs:ro
+      - afa-data:/root/.afa
+    command: ["dashboard", "/logs", "--host", "0.0.0.0", "--port", "8080"]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: afa-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/agent-failures-dashboard.json:/var/lib/grafana/dashboards/agent-failures.json:ro
+    restart: unless-stopped
+
+volumes:
+  afa-data:
+  grafana-data:

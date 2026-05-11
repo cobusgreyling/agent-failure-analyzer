@@ -52,6 +52,14 @@ dev = [
 [project.scripts]
 afa = "agent_failure_analyzer.cli:main"
 
+# Plugin entry-point group for third-party parsers.
+# External packages can register parsers by adding an entry like:
+#
+#   [project.entry-points."afa.parsers"]
+#   myframework = "mypackage.parser:MyFrameworkParser"
+#
+# The class must subclass agent_failure_analyzer.parsers.base.BaseParser.
+
 [tool.setuptools.packages.find]
 include = ["agent_failure_analyzer*"]
 

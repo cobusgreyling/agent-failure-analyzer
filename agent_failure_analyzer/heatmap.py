@@ -135,7 +135,7 @@ def heatmap_to_text(data: HeatmapData) -> str:
             if val == 0:
                 row += " · "
             else:
-                intensity = min(4, int(val / max_val * 4))
+                intensity = min(len(_HEAT_CHARS) - 2, int(val / max_val * 4))
                 row += f" {_HEAT_CHARS[intensity + 1]} "
         lines.append(row)
 
