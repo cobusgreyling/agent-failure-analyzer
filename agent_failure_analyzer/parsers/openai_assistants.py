@@ -30,15 +30,12 @@ class OpenAIAssistantsParser(BaseParser):
             if isinstance(raw, dict):
                 # Check for Assistants API objects
                 obj_type = raw.get("object", "")
-                return obj_type in (
-                    "thread",
-                    "thread.run",
-                    "list",
-                    "thread.message",
-                ) or (
+                if obj_type in ("thread", "thread.run", "list", "thread.message"):
+                    return True
+                return (
                     "data" in raw
                     and isinstance(raw["data"], list)
-                    and raw["data"]
+                    and bool(raw["data"])
                     and isinstance(raw["data"][0], dict)
                     and raw["data"][0].get("object", "").startswith("thread")
                 )

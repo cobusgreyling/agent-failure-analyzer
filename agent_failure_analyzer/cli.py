@@ -956,16 +956,20 @@ def explain(path: str, failure_index: int, session_index: int):
     console.print()
 
     # Classification
-    sev_colors = {"critical": "bold red", "high": "red", "medium": "yellow", "low": "cyan", "info": "dim"}
+    sev_colors = {
+        "critical": "bold red", "high": "red", "medium": "yellow",
+        "low": "cyan", "info": "dim",
+    }
     sev_style = sev_colors.get(failure.severity.value, "")
     console.print(f"  [bold]Category:[/bold]     {category.value}")
     console.print(f"  [bold]Subcategory:[/bold]  {failure.subcategory.value}")
-    console.print(f"  [bold]Severity:[/bold]     [{sev_style}]{failure.severity.value.upper()}[/{sev_style}]")
+    sev_upper = failure.severity.value.upper()
+    console.print(f"  [bold]Severity:[/bold]     [{sev_style}]{sev_upper}[/{sev_style}]")
     console.print(f"  [bold]Confidence:[/bold]   {failure.confidence:.0%}")
     console.print()
 
     # Description
-    console.print(f"  [bold]What happened:[/bold]")
+    console.print("  [bold]What happened:[/bold]")
     console.print(f"    {failure.description}")
     console.print()
 
@@ -977,7 +981,7 @@ def explain(path: str, failure_index: int, session_index: int):
 
     # Evidence
     if failure.evidence:
-        console.print(f"  [bold]Evidence:[/bold]")
+        console.print("  [bold]Evidence:[/bold]")
         for i, ev in enumerate(failure.evidence, 1):
             console.print(f"    {i}. {ev[:120]}")
         console.print()
@@ -995,7 +999,7 @@ def explain(path: str, failure_index: int, session_index: int):
         console.print()
 
     # Remediation
-    console.print(f"  [bold]How to fix:[/bold]")
+    console.print("  [bold]How to fix:[/bold]")
     for s in suggestions:
         console.print(f"    [green]\u2192[/green] {s}")
     console.print()
@@ -1033,15 +1037,15 @@ def correlate(path: str):
         console.print("[green]No cross-session patterns detected.[/green]")
         return
 
-    for i, p in enumerate(report.patterns, 1):
+    for i, pat in enumerate(report.patterns, 1):
         console.print(
-            f"  [bold]{i}.[/bold] [{p.pattern_type}] {p.description}"
+            f"  [bold]{i}.[/bold] [{pat.pattern_type}] {pat.description}"
         )
-        if p.affected_sessions:
+        if pat.affected_sessions:
             console.print(
                 f"     [dim]Sessions: "
-                f"{', '.join(p.affected_sessions[:5])}"
-                f"{'...' if len(p.affected_sessions) > 5 else ''}[/dim]"
+                f"{', '.join(pat.affected_sessions[:5])}"
+                f"{'...' if len(pat.affected_sessions) > 5 else ''}[/dim]"
             )
 
     if report.co_occurrence_matrix:

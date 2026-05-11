@@ -33,10 +33,13 @@ jobs:
         run: |
           pip install mypy
           mypy agent_failure_analyzer/ --ignore-missing-imports --no-strict-optional
-        continue-on-error: true
 
       - name: Run tests
         run: pytest tests/ -v --cov=agent_failure_analyzer --cov-report=term-missing --cov-report=xml
+
+      - name: Run benchmark
+        if: matrix.python-version == '3.12'
+        run: python -m benchmarks.run_benchmark
 
       - name: Upload coverage
         if: matrix.python-version == '3.12'

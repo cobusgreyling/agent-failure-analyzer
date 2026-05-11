@@ -12,10 +12,10 @@ from agent_failure_analyzer.models import (
 )
 from agent_failure_analyzer.notify import (
     NotifyConfig,
-    notify_batch,
-    should_notify,
     _build_payload,
     _build_slack_payload,
+    notify_batch,
+    should_notify,
 )
 from agent_failure_analyzer.taxonomy import (
     FailureCategory,

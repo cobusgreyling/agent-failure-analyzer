@@ -24,8 +24,8 @@ class OTLPExporter:
     ) -> None:
         self.service_name = service_name
         self.endpoint = endpoint
-        self._tracer = None
-        self._meter = None
+        self._tracer: Any = None
+        self._meter: Any = None
 
     def _setup(self) -> None:
         """Lazy-init OpenTelemetry SDK."""

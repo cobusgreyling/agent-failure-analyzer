@@ -79,9 +79,55 @@ cd agent-failure-analyzer
 pip install .
 ```
 
-## Demo
+## Quick Demo
 
+```bash
+# Install and analyze in 30 seconds
+$ pip install agent-failure-analyzer
+$ afa analyze ./sample_logs/
+
+Agent Failure Analysis Report — 9 sessions analyzed
+  Total Sessions    9        Failed Sessions    6
+  Total Failures    31       Failure Rate       67%
+
+Severity Distribution
+  CRITICAL  ████░░░░░░  3
+  HIGH      ██████░░░░  7
+  MEDIUM    ████████░░  12
+  LOW       ██████████  9
+
+Top Failure Types
+  1. fabricated_file_path      8
+  2. invalid_tool_args         4
+  3. cascading_tool_errors     3
+  4. nonexistent_dependency    3
+  5. identical_action_loop     2
+
+$ afa explain ./sample_logs/claude_code_context_overflow.jsonl 1
+
+  Failure #1 of 2 in session: claude_code_context_overflow
+  Category:     context_overflow
+  Subcategory:  context_window_exceeded
+  Severity:     CRITICAL
+  Confidence:   90%
+
+  What happened:
+    The session hit the model's context window limit after accumulating
+    verbose tool outputs without summarization.
+
+  How to fix:
+    → Enable context compaction / summarization before the window fills.
+    → Split long tasks into smaller sub-tasks with fresh context.
+    → Use a model with a larger context window.
+
+$ afa check ./sample_logs/ --max-risk 0.5
+  FAIL: 3 sessions exceed risk threshold (max: 0.50)
+  Exit code: 1
 ```
+
+### Cost Waste Estimation
+
+```bash
 $ afa analyze ./sample_logs/ --cost
 
 Cost Waste Estimation
@@ -94,17 +140,6 @@ Cost Waste Estimation
 │ crewai_hallucination   │       23,000 │       19,290 │     84% │     $0.8681 │
 └────────────────────────┴──────────────┴──────────────┴─────────┴─────────────┘
   Total estimated waste: $0.94
-
-Agent Failure Analysis Report — 6 sessions analyzed
-  Total Sessions    6        Failed Sessions    4
-  Total Failures    26       Failure Rate       67%
-
-Top Failure Types
-  1. fabricated_file_path      8
-  2. invalid_tool_args         4
-  3. nonexistent_dependency    3
-  4. repeated_tool_failure     2
-  5. identical_action_loop     2
 ```
 
 ## Usage

@@ -4,8 +4,8 @@ from io import StringIO
 
 from rich.console import Console
 
-from agent_failure_analyzer.stream import _parse_event, stream_analyze
 from agent_failure_analyzer.models import EventType
+from agent_failure_analyzer.stream import _parse_event, stream_analyze
 
 
 class TestParseEvent:

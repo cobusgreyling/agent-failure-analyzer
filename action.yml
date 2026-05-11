@@ -64,26 +64,34 @@ runs:
     - name: Run analysis
       id: analyze
       shell: bash
+      env:
+        AFA_PATH: ${{ inputs.path }}
+        AFA_MIN_SEVERITY: ${{ inputs.min-severity }}
+        AFA_MIN_CONFIDENCE: ${{ inputs.min-confidence }}
+        AFA_FORMAT: ${{ inputs.format }}
+        AFA_OUTPUT_FILE: ${{ inputs.output-file }}
+        AFA_MAX_RISK: ${{ inputs.max-risk }}
+        AFA_MAX_FAILURES: ${{ inputs.max-failures }}
       run: |
         set +e
 
-        ARGS="--min-severity ${{ inputs.min-severity }}"
-        ARGS="$ARGS --min-confidence ${{ inputs.min-confidence }}"
+        ARGS="--min-severity ${AFA_MIN_SEVERITY}"
+        ARGS="$ARGS --min-confidence ${AFA_MIN_CONFIDENCE}"
 
-        if [ -n "${{ inputs.output-file }}" ]; then
-          ARGS="$ARGS --format ${{ inputs.format }} --output ${{ inputs.output-file }}"
+        if [ -n "${AFA_OUTPUT_FILE}" ]; then
+          ARGS="$ARGS --format ${AFA_FORMAT} --output ${AFA_OUTPUT_FILE}"
         fi
 
-        afa analyze ${{ inputs.path }} $ARGS 2>&1
+        afa analyze "${AFA_PATH}" $ARGS 2>&1
         ANALYZE_EXIT=$?
 
         # Run check command for gate
-        CHECK_ARGS="--max-risk ${{ inputs.max-risk }}"
-        if [ -n "${{ inputs.max-failures }}" ]; then
-          CHECK_ARGS="$CHECK_ARGS --max-failures ${{ inputs.max-failures }}"
+        CHECK_ARGS="--max-risk ${AFA_MAX_RISK}"
+        if [ -n "${AFA_MAX_FAILURES}" ]; then
+          CHECK_ARGS="$CHECK_ARGS --max-failures ${AFA_MAX_FAILURES}"
         fi
 
-        CHECK_OUTPUT=$(afa check ${{ inputs.path }} $CHECK_ARGS 2>&1)
+        CHECK_OUTPUT=$(afa check "${AFA_PATH}" $CHECK_ARGS 2>&1)
         CHECK_EXIT=$?
 
         echo "check-output=$CHECK_OUTPUT" >> "$GITHUB_OUTPUT"

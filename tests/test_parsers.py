@@ -9,7 +9,8 @@ from agent_failure_analyzer.parsers import (
     GenericJSONParser,
     LangChainParser,
 )
-from agent_failure_analyzer.parsers.registry import ParserRegistry
+from agent_failure_analyzer.parsers.base import BaseParser
+from agent_failure_analyzer.parsers.registry import ParserRegistry, _load_plugin_parsers
 
 SAMPLE_DIR = Path(__file__).parent.parent / "sample_logs"
 
@@ -108,3 +109,22 @@ class TestParserRegistry:
         registry = ParserRegistry()
         sessions = registry.parse_directory(SAMPLE_DIR)
         assert len(sessions) >= 4  # At least one per sample file
+
+    def test_plugin_parsers_loaded(self):
+        """Verify that the plugin entry point loading mechanism works."""
+        # _load_plugin_parsers should return an empty list when no plugins are installed
+        plugins = _load_plugin_parsers()
+        assert isinstance(plugins, list)
+        # All loaded plugins must be BaseParser subclasses
+        for p in plugins:
+            assert isinstance(p, BaseParser)
+
+    def test_plugin_parser_integration(self):
+        """Verify plugin parsers are tried between built-in and generic parsers."""
+        registry = ParserRegistry()
+        # Built-in parsers + generic fallback should be present
+        parser_types = [type(p).__name__ for p in registry._parsers]
+        assert "ClaudeCodeParser" in parser_types
+        assert "GenericJSONParser" in parser_types
+        # Generic must be last
+        assert parser_types[-1] == "GenericJSONParser"

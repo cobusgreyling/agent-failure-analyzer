@@ -57,5 +57,60 @@
     "expected_categories": [],
     "expected_outcome": "unknown",
     "min_risk": 0.0
+  },
+  "claude_code_real_planning_failure.jsonl": {
+    "expected_failures": [
+      "overambitious_plan",
+      "skipped_steps"
+    ],
+    "expected_categories": [
+      "planning_failure"
+    ],
+    "expected_outcome": "failure",
+    "min_risk": 0.2
+  },
+  "claude_code_real_instruction_drift.jsonl": {
+    "expected_failures": [
+      "constraint_violated"
+    ],
+    "expected_categories": [
+      "instruction_drift"
+    ],
+    "expected_outcome": "unknown",
+    "min_risk": 0.1
+  },
+  "langchain_real_hallucination_and_loop.json": {
+    "expected_failures": [
+      "invalid_tool_args",
+      "fabricated_fact"
+    ],
+    "expected_categories": [
+      "tool_misuse",
+      "hallucination"
+    ],
+    "expected_outcome": "failure",
+    "min_risk": 0.2
+  },
+  "autogen_real_error_cascade.json": {
+    "expected_failures": [
+      "cascading_tool_errors",
+      "misinterpreted_error"
+    ],
+    "expected_categories": [
+      "error_cascade"
+    ],
+    "expected_outcome": "failure",
+    "min_risk": 0.3
+  },
+  "openai_assistants_code_interpreter.json": {
+    "expected_failures": [
+      "tool_not_found",
+      "repeated_tool_failure"
+    ],
+    "expected_categories": [
+      "tool_misuse"
+    ],
+    "expected_outcome": "unknown",
+    "min_risk": 0.1
   }
 }

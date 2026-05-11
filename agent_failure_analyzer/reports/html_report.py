@@ -24,19 +24,21 @@ class HTMLReporter:
         """Render a single session as a standalone HTML report."""
         data = self._json.session_to_dict(result)
         # Wrap single session in batch-like structure for the template
-        wrapped = {
+        category_counts: dict[str, int] = {}
+        severity_counts: dict[str, int] = {}
+        for f in result.failures:
+            cat = f.category.value
+            sev = f.severity.value
+            category_counts[cat] = category_counts.get(cat, 0) + 1
+            severity_counts[sev] = severity_counts.get(sev, 0) + 1
+        wrapped: dict[str, object] = {
             "total_sessions": 1,
             "failed_sessions": 1 if result.failures else 0,
-            "category_counts": {},
-            "severity_counts": {},
+            "category_counts": category_counts,
+            "severity_counts": severity_counts,
             "top_failures": [],
             "sessions": [data],
         }
-        for f in result.failures:
-            cat = f["category"]
-            sev = f["severity"]
-            wrapped["category_counts"][cat] = wrapped["category_counts"].get(cat, 0) + 1
-            wrapped["severity_counts"][sev] = wrapped["severity_counts"].get(sev, 0) + 1
         return _render_html(wrapped)
 
     def write_batch(self, batch: BatchAnalysisResult, path: str | Path) -> None:
