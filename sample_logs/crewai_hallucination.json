@@ -1,0 +1,60 @@
+{
+  "crew_id": "crewai-session-001",
+  "crew": {"name": "ResearchCrew"},
+  "model": "gpt-4-turbo",
+  "status": "failed",
+  "start_time": "2026-05-10T11:00:00",
+  "end_time": "2026-05-10T11:15:00",
+  "agents": [
+    {"name": "researcher", "role": "Senior Research Analyst"},
+    {"name": "writer", "role": "Technical Writer"}
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "description": "Research the latest developments in quantum computing",
+      "agent": "researcher",
+      "start_time": "2026-05-10T11:00:01",
+      "end_time": "2026-05-10T11:08:00",
+      "tool_calls": [
+        {
+          "tool": "read_file",
+          "name": "read_file",
+          "input": {"file_path": "/data/quantum_papers/latest_review.md"},
+          "output": null,
+          "error": "FileNotFoundError: No such file or directory: '/data/quantum_papers/latest_review.md'",
+          "timestamp": "2026-05-10T11:00:05"
+        },
+        {
+          "tool": "read_file",
+          "name": "read_file",
+          "input": {"file_path": "/data/quantum_papers/survey_2026.pdf"},
+          "output": null,
+          "error": "FileNotFoundError: No such file or directory: '/data/quantum_papers/survey_2026.pdf'",
+          "timestamp": "2026-05-10T11:00:10"
+        },
+        {
+          "tool": "web_search",
+          "name": "web_search",
+          "input": {"query": "quantum computing 2026 breakthroughs"},
+          "result": "Found 5 results about quantum computing advances",
+          "timestamp": "2026-05-10T11:01:00"
+        }
+      ],
+      "output": "Quantum computing has seen major advances in 2026...",
+      "tokens_used": 15000
+    },
+    {
+      "id": "task-2",
+      "description": "Write a blog post about the findings",
+      "agent": "writer",
+      "start_time": "2026-05-10T11:08:01",
+      "end_time": "2026-05-10T11:15:00",
+      "tool_calls": [],
+      "output": "# Quantum Computing in 2026\n\nAccording to the QuantumLeap library (pip install quantumleap-ai)...",
+      "error": null,
+      "tokens_used": 8000
+    }
+  ],
+  "crew_output": null
+}

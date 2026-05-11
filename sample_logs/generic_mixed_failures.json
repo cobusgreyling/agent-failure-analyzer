@@ -1,0 +1,14 @@
+[
+  {"role": "user", "content": "Build a REST API for the todo app", "timestamp": "2026-05-10T08:00:00"},
+  {"role": "assistant", "content": "I'll create the API endpoints now.", "timestamp": "2026-05-10T08:00:02"},
+  {"role": "tool", "name": "write_file", "content": "Created /src/api.py", "timestamp": "2026-05-10T08:00:05"},
+  {"role": "tool", "name": "bash", "content": "npm install express-validators", "timestamp": "2026-05-10T08:00:10"},
+  {"role": "error", "error": "npm ERR! 404 Not Found - GET https://registry.npmjs.org/express-validators", "timestamp": "2026-05-10T08:00:15"},
+  {"role": "assistant", "content": "Let me try installing it again.", "timestamp": "2026-05-10T08:00:17"},
+  {"role": "tool", "name": "bash", "content": "npm install express-validators", "timestamp": "2026-05-10T08:00:18"},
+  {"role": "error", "error": "npm ERR! 404 Not Found - GET https://registry.npmjs.org/express-validators", "timestamp": "2026-05-10T08:00:22"},
+  {"role": "assistant", "content": "Let me try a different approach and install it.", "timestamp": "2026-05-10T08:00:24"},
+  {"role": "tool", "name": "bash", "content": "npm install express-validators", "timestamp": "2026-05-10T08:00:25"},
+  {"role": "error", "error": "npm ERR! 404 Not Found - GET https://registry.npmjs.org/express-validators", "timestamp": "2026-05-10T08:00:28"},
+  {"role": "user", "content": "That package doesn't exist! You keep trying the same thing. Use express-validator instead.", "timestamp": "2026-05-10T08:00:35"}
+]

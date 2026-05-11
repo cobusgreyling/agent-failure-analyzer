@@ -1,0 +1,62 @@
+{
+  "runs": [
+    {
+      "run_type": "chain",
+      "name": "AgentExecutor",
+      "session_id": "langchain-session-001",
+      "start_time": "2026-05-10T14:00:00",
+      "end_time": "2026-05-10T14:05:30",
+      "inputs": {"input": "Search for recent papers on RLHF and summarize them"},
+      "outputs": null,
+      "error": "Maximum iterations reached",
+      "extra": {"invocation_params": {"model_name": "gpt-4"}},
+      "child_runs": [
+        {
+          "run_type": "llm",
+          "name": "ChatOpenAI",
+          "start_time": "2026-05-10T14:00:01",
+          "end_time": "2026-05-10T14:00:03",
+          "inputs": {"messages": [{"role": "user", "content": "Search for recent papers on RLHF and summarize them"}]},
+          "outputs": {"generations": [[{"text": "I'll search for RLHF papers using the arxiv tool."}]]},
+          "error": null
+        },
+        {
+          "run_type": "tool",
+          "name": "arxiv_search",
+          "start_time": "2026-05-10T14:00:04",
+          "end_time": "2026-05-10T14:00:06",
+          "inputs": {"query": "RLHF reinforcement learning human feedback 2026"},
+          "outputs": null,
+          "error": "ConnectionError: Failed to connect to arxiv API"
+        },
+        {
+          "run_type": "tool",
+          "name": "arxiv_search",
+          "start_time": "2026-05-10T14:00:07",
+          "end_time": "2026-05-10T14:00:09",
+          "inputs": {"query": "RLHF reinforcement learning human feedback"},
+          "outputs": null,
+          "error": "ConnectionError: Failed to connect to arxiv API"
+        },
+        {
+          "run_type": "tool",
+          "name": "web_search",
+          "start_time": "2026-05-10T14:00:10",
+          "end_time": "2026-05-10T14:00:12",
+          "inputs": {"query": "RLHF papers 2026"},
+          "outputs": null,
+          "error": "RateLimitError: 429 Too Many Requests"
+        },
+        {
+          "run_type": "tool",
+          "name": "web_search",
+          "start_time": "2026-05-10T14:00:13",
+          "end_time": "2026-05-10T14:00:15",
+          "inputs": {"query": "RLHF papers"},
+          "outputs": null,
+          "error": "RateLimitError: 429 Too Many Requests"
+        }
+      ]
+    }
+  ]
+}
