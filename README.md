@@ -1,5 +1,10 @@
 # Agent Failure Analyzer
 
+[![CI](https://github.com/cobusgreyling/agent-failure-analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/cobusgreyling/agent-failure-analyzer/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![PyPI version](https://img.shields.io/pypi/v/agent-failure-analyzer.svg)](https://pypi.org/project/agent-failure-analyzer/)
+
 ```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                                                                              ║
@@ -73,6 +78,34 @@ cd agent-failure-analyzer
 pip install .
 ```
 
+## Demo
+
+```
+$ afa analyze ./sample_logs/ --cost
+
+Cost Waste Estimation
+┏━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━┓
+┃ Session                ┃ Total Tokens ┃ Wasted Tokens┃ Waste % ┃ Est. Wasted $┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━┩
+│ context_overflow       │        1,583 │           23 │      1% │     $0.0002 │
+│ real_world_session     │        8,710 │        7,501 │     86% │     $0.0675 │
+│ tool_loop              │          207 │          173 │     84% │     $0.0016 │
+│ crewai_hallucination   │       23,000 │       19,290 │     84% │     $0.8681 │
+└────────────────────────┴──────────────┴──────────────┴─────────┴─────────────┘
+  Total estimated waste: $0.94
+
+Agent Failure Analysis Report — 6 sessions analyzed
+  Total Sessions    6        Failed Sessions    4
+  Total Failures    26       Failure Rate       67%
+
+Top Failure Types
+  1. fabricated_file_path      8
+  2. invalid_tool_args         4
+  3. nonexistent_dependency    3
+  4. repeated_tool_failure     2
+  5. identical_action_loop     2
+```
+
 ## Usage
 
 ### CLI
@@ -86,6 +119,30 @@ afa analyze ./logs/
 
 # Output as JSON
 afa analyze ./logs/ -f json -o report.json
+
+# Filter by confidence threshold
+afa analyze ./logs/ --min-confidence 0.7
+
+# Show cost waste estimation
+afa analyze ./logs/ --cost
+
+# Persist results for trend tracking
+afa analyze ./logs/ --store
+
+# Auto-discover Claude Code sessions
+afa ingest --claude-code
+
+# CI quality gate
+afa check ./logs/ --max-risk 0.5 --max-failures 10
+
+# Compare two sessions
+afa compare session_a.jsonl session_b.jsonl
+
+# Show failure trends over time
+afa trend --days 30
+
+# Watch directory for changes
+afa watch ./logs/ --interval 5
 
 # Show the failure taxonomy
 afa taxonomy
@@ -178,6 +235,40 @@ Uses prompt caching — the taxonomy system prompt is cached across calls, reduc
 2. **Classify**: Pattern-match against 30+ failure subcategories using heuristics, optionally enhanced with LLM analysis
 3. **Score**: Calculate risk scores based on severity distribution
 4. **Report**: Output as terminal tables, JSON, or interactive web dashboard
+
+## CI/CD Integration
+
+Use `afa check` as a quality gate in your pipelines:
+
+```yaml
+# GitHub Actions
+- name: Check agent quality
+  run: afa check ./agent-logs/ --max-risk 0.5 --max-failures 10
+```
+
+Exits with code 1 if any session exceeds the risk threshold or total failures exceed the limit.
+
+## Docker
+
+```bash
+docker build -t afa .
+docker run -v ./logs:/logs afa analyze /logs
+docker run -v ./logs:/logs -p 8080:8080 afa dashboard /logs --host 0.0.0.0
+```
+
+## Trend Tracking
+
+Persist results across runs and visualize trends:
+
+```bash
+# Store results on each run
+afa analyze ./logs/ --store
+
+# View trends
+afa trend --days 30
+```
+
+Data is stored in `~/.afa/history.db` (SQLite).
 
 ## License
 

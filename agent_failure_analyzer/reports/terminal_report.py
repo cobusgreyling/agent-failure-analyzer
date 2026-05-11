@@ -154,8 +154,7 @@ class TerminalReporter:
             for cat, count in sorted(
                 batch.category_counts.items(), key=lambda x: x[1], reverse=True
             ):
-                desc = CATEGORY_DESCRIPTIONS.get(cat, "") if hasattr(CATEGORY_DESCRIPTIONS, '__contains__') else ""
-                # Lookup by enum value
+                desc = ""
                 from ..taxonomy import FailureCategory
                 for fc in FailureCategory:
                     if fc.value == cat:

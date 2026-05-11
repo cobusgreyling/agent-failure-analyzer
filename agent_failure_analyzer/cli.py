@@ -1,15 +1,21 @@
 """
 CLI for Agent Failure Analyzer.
 
-Usage:
-    afa analyze <path>          Analyze a log file or directory
-    afa report <path> -o out    Generate a JSON report
+Commands:
+    afa analyze <path>          Analyze log file(s) for failures
+    afa ingest --claude-code    Auto-discover and analyze Claude Code sessions
+    afa check <path>            CI gate — exit non-zero if risk exceeds threshold
+    afa compare <a> <b>         Compare two sessions side-by-side
+    afa trend                   Show failure trends over time (requires prior --store runs)
+    afa watch <path>            Monitor directory and re-analyze on changes
     afa taxonomy                Show the failure taxonomy
     afa dashboard <path>        Launch the web dashboard
 """
 
 from __future__ import annotations
 
+import sys
+import time
 from pathlib import Path
 
 import click
@@ -31,26 +37,42 @@ from .taxonomy import (
 console = Console()
 
 
+def _filter_results(results, min_severity: str, min_confidence: float):
+    """Filter failures by severity and confidence thresholds."""
+    severity_order = ["info", "low", "medium", "high", "critical"]
+    min_sev_idx = severity_order.index(min_severity)
+
+    for result in results:
+        result.failures = [
+            f for f in result.failures
+            if severity_order.index(f.severity.value) >= min_sev_idx
+            and f.confidence >= min_confidence
+        ]
+    return results
+
+
 @click.group()
 @click.version_option(version=__version__, prog_name="afa")
 def main():
     """Agent Failure Analyzer — classify and diagnose AI agent session failures."""
 
 
+# ── analyze ───────────────────────────────────────────────────────────
+
 @main.command()
 @click.argument("path", type=click.Path(exists=True))
-@click.option(
-    "--format", "-f",
-    type=click.Choice(["terminal", "json"]),
-    default="terminal",
-    help="Output format.",
-)
+@click.option("--format", "-f", type=click.Choice(["terminal", "json"]), default="terminal", help="Output format.")
 @click.option("--output", "-o", type=click.Path(), help="Output file path (for JSON format).")
 @click.option("--min-severity", "-s", type=click.Choice(["info", "low", "medium", "high", "critical"]), default="info", help="Minimum severity to display.")
-@click.option("--llm", is_flag=True, default=False, help="Use Claude LLM for deeper classification (requires ANTHROPIC_API_KEY).")
-@click.option("--llm-auto", is_flag=True, default=False, help="Use LLM only for sessions where heuristics are uncertain.")
+@click.option("--min-confidence", "-c", type=float, default=0.0, help="Minimum confidence threshold (0.0-1.0).")
+@click.option("--llm", is_flag=True, default=False, help="Use Claude LLM for deeper classification.")
+@click.option("--llm-auto", is_flag=True, default=False, help="Use LLM only when heuristics are uncertain.")
 @click.option("--llm-model", default="claude-sonnet-4-6", help="Model for LLM classification.")
-def analyze(path: str, format: str, output: str | None, min_severity: str, llm: bool, llm_auto: bool, llm_model: str):
+@click.option("--store", is_flag=True, default=False, help="Persist results to SQLite for trend tracking.")
+@click.option("--cost", is_flag=True, default=False, help="Show cost waste estimation.")
+def analyze(path: str, format: str, output: str | None, min_severity: str,
+            min_confidence: float, llm: bool, llm_auto: bool, llm_model: str,
+            store: bool, cost: bool):
     """Analyze agent session log(s) for failures.
 
     PATH can be a single log file (.json, .jsonl) or a directory of logs.
@@ -63,50 +85,412 @@ def analyze(path: str, format: str, output: str | None, min_severity: str, llm: 
     if p.is_dir():
         console.print(f"[bold]Scanning directory:[/bold] {p}")
         batch = engine.analyze_directory(p)
+        _filter_results(batch.results, min_severity, min_confidence)
         console.print(f"[dim]Found {batch.total_sessions} session(s)[/dim]\n")
 
+        if cost:
+            _print_cost_summary(batch.results)
+
+        if store:
+            _store_batch(batch)
+
         if format == "json":
-            reporter = JSONReporter()
+            json_reporter = JSONReporter()
             if output:
-                reporter.write_batch(batch, output)
+                json_reporter.write_batch(batch, output)
                 console.print(f"[green]Report written to {output}[/green]")
             else:
-                import json
-                click.echo(json.dumps(reporter.batch_to_dict(batch), indent=2))
+                import json as json_mod
+                click.echo(json_mod.dumps(json_reporter.batch_to_dict(batch), indent=2))
         else:
-            reporter = TerminalReporter(console)
-            reporter.print_batch(batch)
+            term_reporter = TerminalReporter(console)
+            term_reporter.print_batch(batch)
     else:
         console.print(f"[bold]Analyzing:[/bold] {p}")
         results = engine.analyze_file(p)
+        _filter_results(results, min_severity, min_confidence)
         console.print(f"[dim]Found {len(results)} session(s)[/dim]\n")
 
         if not results:
             console.print("[yellow]No sessions found in file.[/yellow]")
             return
 
+        if cost:
+            _print_cost_summary(results)
+
+        if store:
+            from .storage import AnalysisStore
+            db = AnalysisStore()
+            for r in results:
+                db.save_result(r)
+            console.print(f"[dim]Stored {len(results)} result(s)[/dim]")
+
         if format == "json":
-            reporter = JSONReporter()
+            json_reporter = JSONReporter()
             if len(results) == 1:
                 if output:
-                    reporter.write_session(results[0], output)
+                    json_reporter.write_session(results[0], output)
                     console.print(f"[green]Report written to {output}[/green]")
                 else:
-                    import json
-                    click.echo(json.dumps(reporter.session_to_dict(results[0]), indent=2))
+                    import json as json_mod
+                    click.echo(json_mod.dumps(json_reporter.session_to_dict(results[0]), indent=2))
             else:
                 batch = engine.analyze_sessions([r.session for r in results])
                 if output:
-                    reporter.write_batch(batch, output)
+                    json_reporter.write_batch(batch, output)
                     console.print(f"[green]Report written to {output}[/green]")
                 else:
-                    import json
-                    click.echo(json.dumps(reporter.batch_to_dict(batch), indent=2))
+                    import json as json_mod
+                    click.echo(json_mod.dumps(json_reporter.batch_to_dict(batch), indent=2))
         else:
             term_reporter = TerminalReporter(console)
             for result in results:
                 term_reporter.print_session(result)
 
+
+# ── ingest ────────────────────────────────────────────────────────────
+
+@main.command()
+@click.option("--claude-code", "source", flag_value="claude_code", default=True, help="Ingest Claude Code sessions from ~/.claude/projects/.")
+@click.option("--path", type=click.Path(exists=True), help="Additional directory to scan.")
+@click.option("--store", is_flag=True, default=False, help="Persist results to SQLite.")
+@click.option("--min-confidence", "-c", type=float, default=0.0, help="Minimum confidence threshold.")
+def ingest(source: str, path: str | None, store: bool, min_confidence: float):
+    """Auto-discover and analyze agent sessions from known locations."""
+    from .ingest import discover_claude_code_sessions
+
+    console.print("[bold]Discovering Claude Code sessions...[/bold]")
+    session_files = discover_claude_code_sessions()
+
+    if path:
+        from .ingest import discover_all
+        extra = [p for p in Path(path).rglob("*") if p.suffix in (".json", ".jsonl")]
+        session_files.extend(extra)
+
+    if not session_files:
+        console.print("[yellow]No session files found.[/yellow]")
+        console.print(f"[dim]Searched: ~/.claude/projects/[/dim]")
+        return
+
+    console.print(f"[dim]Found {len(session_files)} log file(s)[/dim]")
+
+    engine = AnalysisEngine()
+    all_results = []
+    for sf in session_files:
+        try:
+            results = engine.analyze_file(sf)
+            _filter_results(results, "info", min_confidence)
+            all_results.extend(results)
+        except Exception:
+            continue
+
+    if not all_results:
+        console.print("[yellow]No sessions could be parsed.[/yellow]")
+        return
+
+    batch = engine.analyze_sessions([r.session for r in all_results])
+    console.print()
+
+    if store:
+        _store_batch(batch)
+
+    term_reporter = TerminalReporter(console)
+    term_reporter.print_batch(batch)
+
+
+# ── check ─────────────────────────────────────────────────────────────
+
+@main.command()
+@click.argument("path", type=click.Path(exists=True))
+@click.option("--max-risk", type=float, default=0.5, help="Maximum acceptable risk score (0.0-1.0).")
+@click.option("--max-failures", type=int, default=None, help="Maximum acceptable total failures.")
+@click.option("--min-confidence", "-c", type=float, default=0.0, help="Minimum confidence threshold.")
+def check(path: str, max_risk: float, max_failures: int | None, min_confidence: float):
+    """CI quality gate — exit non-zero if thresholds are exceeded.
+
+    Use in CI pipelines to fail builds when agent sessions have too many failures.
+    """
+    engine = AnalysisEngine()
+    p = Path(path)
+
+    if p.is_dir():
+        batch = engine.analyze_directory(p)
+        results = batch.results
+    else:
+        results = engine.analyze_file(p)
+
+    _filter_results(results, "info", min_confidence)
+
+    # Check thresholds
+    violations = []
+    for r in results:
+        if r.risk_score > max_risk:
+            violations.append(
+                f"Session {r.session.session_id}: risk {r.risk_score:.0%} > {max_risk:.0%}"
+            )
+
+    total_failures = sum(len(r.failures) for r in results)
+    if max_failures is not None and total_failures > max_failures:
+        violations.append(
+            f"Total failures {total_failures} > {max_failures}"
+        )
+
+    if violations:
+        console.print("[bold red]FAIL[/bold red] — threshold exceeded:")
+        for v in violations:
+            console.print(f"  [red]{v}[/red]")
+        sys.exit(1)
+    else:
+        console.print(
+            f"[bold green]PASS[/bold green] — "
+            f"{len(results)} session(s), {total_failures} failure(s), "
+            f"all within thresholds"
+        )
+        sys.exit(0)
+
+
+# ── compare ───────────────────────────────────────────────────────────
+
+@main.command()
+@click.argument("file_a", type=click.Path(exists=True))
+@click.argument("file_b", type=click.Path(exists=True))
+def compare(file_a: str, file_b: str):
+    """Compare two session files side-by-side.
+
+    Shows what changed between two runs — new failures, resolved failures,
+    risk score changes.
+    """
+    engine = AnalysisEngine()
+    results_a = engine.analyze_file(file_a)
+    results_b = engine.analyze_file(file_b)
+
+    if not results_a or not results_b:
+        console.print("[yellow]Both files must contain at least one session.[/yellow]")
+        return
+
+    a = results_a[0]
+    b = results_b[0]
+
+    # Header
+    table = Table(title="Session Comparison", border_style="blue")
+    table.add_column("Metric", style="bold", width=20)
+    table.add_column(f"A: {a.session.session_id[:20]}", width=30)
+    table.add_column(f"B: {b.session.session_id[:20]}", width=30)
+    table.add_column("Delta", width=15)
+
+    # Risk
+    risk_delta = b.risk_score - a.risk_score
+    delta_style = "red" if risk_delta > 0 else "green" if risk_delta < 0 else "dim"
+    table.add_row(
+        "Risk Score",
+        f"{a.risk_score:.0%}",
+        f"{b.risk_score:.0%}",
+        Text(f"{risk_delta:+.0%}", style=delta_style),
+    )
+
+    # Failures
+    fa_count = len(a.failures)
+    fb_count = len(b.failures)
+    f_delta = fb_count - fa_count
+    delta_style = "red" if f_delta > 0 else "green" if f_delta < 0 else "dim"
+    table.add_row("Failures", str(fa_count), str(fb_count), Text(f"{f_delta:+d}", style=delta_style))
+
+    # Outcome
+    table.add_row("Outcome", a.session.outcome.value, b.session.outcome.value, "")
+
+    # Events
+    ea = len(a.session.events)
+    eb = len(b.session.events)
+    table.add_row("Events", str(ea), str(eb), f"{eb - ea:+d}")
+
+    # Tokens
+    ta = a.session.total_tokens or 0
+    tb = b.session.total_tokens or 0
+    table.add_row("Tokens", f"{ta:,}" if ta else "-", f"{tb:,}" if tb else "-", f"{tb - ta:+,}" if ta or tb else "")
+
+    console.print(table)
+    console.print()
+
+    # Failure diff
+    a_subcats = {f.subcategory.value for f in a.failures}
+    b_subcats = {f.subcategory.value for f in b.failures}
+
+    new_failures = b_subcats - a_subcats
+    resolved = a_subcats - b_subcats
+    common = a_subcats & b_subcats
+
+    if new_failures:
+        console.print("[bold red]New failures in B:[/bold red]")
+        for sub in sorted(new_failures):
+            console.print(f"  [red]+ {sub}[/red]")
+
+    if resolved:
+        console.print("[bold green]Resolved in B:[/bold green]")
+        for sub in sorted(resolved):
+            console.print(f"  [green]- {sub}[/green]")
+
+    if common:
+        console.print("[dim]Unchanged failures:[/dim]")
+        for sub in sorted(common):
+            console.print(f"  [dim]= {sub}[/dim]")
+
+    if not new_failures and not resolved:
+        console.print("[dim]No change in failure types.[/dim]")
+
+
+# ── trend ─────────────────────────────────────────────────────────────
+
+@main.command()
+@click.option("--days", "-d", type=int, default=30, help="Number of days to show.")
+def trend(days: int):
+    """Show failure trends over time.
+
+    Requires previous runs with --store flag to populate the database.
+    """
+    from .storage import AnalysisStore
+
+    store = AnalysisStore()
+    total = store.get_total_runs()
+
+    if total == 0:
+        console.print("[yellow]No stored analysis runs found.[/yellow]")
+        console.print("[dim]Run 'afa analyze <path> --store' first to populate the database.[/dim]")
+        return
+
+    console.print(f"[bold]Failure Trends[/bold] (last {days} days, {total} total runs)\n")
+
+    # Daily trend
+    daily = store.get_trend(days)
+    if daily:
+        trend_table = Table(title="Daily Summary", border_style="blue")
+        trend_table.add_column("Date", width=12)
+        trend_table.add_column("Sessions", justify="right", width=10)
+        trend_table.add_column("Failed", justify="right", width=10)
+        trend_table.add_column("Failures", justify="right", width=10)
+        trend_table.add_column("Avg Risk", justify="right", width=10)
+        trend_table.add_column("Trend", width=20)
+
+        max_failures = max((d["total_failures"] or 0) for d in daily) or 1
+        for d in daily:
+            failures = d["total_failures"] or 0
+            bar_len = int(failures / max_failures * 15)
+            risk = d["avg_risk"] or 0
+            risk_style = "red" if risk > 0.5 else "yellow" if risk > 0.3 else "green"
+            trend_table.add_row(
+                d["day"],
+                str(d["total_sessions"]),
+                str(d["failed_sessions"]),
+                str(failures),
+                Text(f"{risk:.0%}", style=risk_style),
+                Text("█" * bar_len, style=risk_style),
+            )
+
+        console.print(trend_table)
+        console.print()
+
+    # Top failures
+    top = store.get_top_failures(days)
+    if top:
+        top_table = Table(title="Top Failure Types", border_style="magenta")
+        top_table.add_column("#", width=3, style="dim")
+        top_table.add_column("Subcategory", width=30)
+        top_table.add_column("Count", justify="right", width=7)
+
+        for i, entry in enumerate(top, 1):
+            top_table.add_row(str(i), entry["subcategory"], str(entry["count"]))
+
+        console.print(top_table)
+        console.print()
+
+    # Framework stats
+    fw = store.get_framework_stats(days)
+    if fw:
+        fw_table = Table(title="By Framework", border_style="cyan")
+        fw_table.add_column("Framework", width=15)
+        fw_table.add_column("Sessions", justify="right", width=10)
+        fw_table.add_column("Failed", justify="right", width=10)
+        fw_table.add_column("Avg Risk", justify="right", width=10)
+
+        for entry in fw:
+            risk = entry["avg_risk"] or 0
+            fw_table.add_row(
+                entry["framework"],
+                str(entry["sessions"]),
+                str(entry["failed"]),
+                f"{risk:.0%}",
+            )
+
+        console.print(fw_table)
+
+    store.close()
+
+
+# ── watch ─────────────────────────────────────────────────────────────
+
+@main.command()
+@click.argument("path", type=click.Path(exists=True))
+@click.option("--interval", "-i", type=int, default=5, help="Poll interval in seconds.")
+@click.option("--store", is_flag=True, default=False, help="Persist results to SQLite.")
+def watch(path: str, interval: int, store: bool):
+    """Monitor a directory and re-analyze when files change.
+
+    Watches for new or modified .json/.jsonl files.
+    """
+    p = Path(path)
+    if not p.is_dir():
+        console.print("[red]Watch requires a directory path.[/red]")
+        return
+
+    console.print(f"[bold]Watching:[/bold] {p} (every {interval}s)")
+    console.print("[dim]Press Ctrl+C to stop[/dim]\n")
+
+    seen: dict[Path, float] = {}
+    engine = AnalysisEngine()
+
+    # Initial scan
+    for f in p.rglob("*"):
+        if f.is_file() and f.suffix in (".json", ".jsonl"):
+            seen[f] = f.stat().st_mtime
+
+    try:
+        while True:
+            time.sleep(interval)
+            changed: list[Path] = []
+
+            for f in p.rglob("*"):
+                if not f.is_file() or f.suffix not in (".json", ".jsonl"):
+                    continue
+                mtime = f.stat().st_mtime
+                if f not in seen or seen[f] < mtime:
+                    changed.append(f)
+                    seen[f] = mtime
+
+            if changed:
+                console.print(f"\n[bold yellow]Changes detected:[/bold yellow] {len(changed)} file(s)")
+                for cf in changed:
+                    console.print(f"  [dim]{cf.name}[/dim]")
+
+                for cf in changed:
+                    try:
+                        results = engine.analyze_file(cf)
+                        if results:
+                            term_reporter = TerminalReporter(console)
+                            for r in results:
+                                term_reporter.print_session(r)
+                            if store:
+                                from .storage import AnalysisStore
+                                db = AnalysisStore()
+                                for r in results:
+                                    db.save_result(r)
+                                db.close()
+                    except Exception as e:
+                        console.print(f"  [red]Error parsing {cf.name}: {e}[/red]")
+
+    except KeyboardInterrupt:
+        console.print("\n[dim]Stopped watching.[/dim]")
+
+
+# ── taxonomy ──────────────────────────────────────────────────────────
 
 @main.command()
 def taxonomy():
@@ -116,7 +500,6 @@ def taxonomy():
     table.add_column("Subcategories", width=35)
     table.add_column("Description")
 
-    # Group subcategories by category
     cat_subs: dict[FailureCategory, list[str]] = {}
     for sub, cat in SUBCATEGORY_TO_CATEGORY.items():
         cat_subs.setdefault(cat, []).append(sub.value)
@@ -132,6 +515,8 @@ def taxonomy():
 
     console.print(table)
 
+
+# ── dashboard ─────────────────────────────────────────────────────────
 
 @main.command()
 @click.argument("path", type=click.Path(exists=True))
@@ -149,6 +534,47 @@ def dashboard(path: str, host: str, port: int):
 
     import uvicorn
     uvicorn.run(app, host=host, port=port, log_level="warning")
+
+
+# ── helpers ───────────────────────────────────────────────────────────
+
+def _print_cost_summary(results: list) -> None:
+    """Print cost waste estimation for results."""
+    from .cost import estimate_waste
+
+    table = Table(title="Cost Waste Estimation", border_style="yellow")
+    table.add_column("Session", width=24)
+    table.add_column("Total Tokens", justify="right", width=14)
+    table.add_column("Wasted Tokens", justify="right", width=14)
+    table.add_column("Waste %", justify="right", width=9)
+    table.add_column("Est. Wasted $", justify="right", width=12)
+
+    total_wasted_usd = 0.0
+    for r in results:
+        est = estimate_waste(r)
+        total_wasted_usd += est.estimated_wasted_cost_usd
+        if est.wasted_tokens > 0:
+            waste_style = "red" if est.waste_ratio > 0.5 else "yellow"
+            table.add_row(
+                r.session.session_id[:24],
+                f"{est.total_tokens:,}",
+                Text(f"{est.wasted_tokens:,}", style=waste_style),
+                Text(f"{est.waste_ratio:.0%}", style=waste_style),
+                f"${est.estimated_wasted_cost_usd:.4f}",
+            )
+
+    if total_wasted_usd > 0:
+        console.print(table)
+        console.print(f"  [bold]Total estimated waste: ${total_wasted_usd:.4f}[/bold]\n")
+
+
+def _store_batch(batch) -> None:
+    """Store a batch of results to SQLite."""
+    from .storage import AnalysisStore
+    db = AnalysisStore()
+    db.save_batch(batch)
+    console.print(f"[dim]Stored {batch.total_sessions} result(s) to {db.db_path}[/dim]")
+    db.close()
 
 
 if __name__ == "__main__":

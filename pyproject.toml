@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-failure-analyzer"
-version = "0.1.0"
+version = "0.2.0"
 description = "Classify and analyze AI agent session failures across frameworks"
 readme = "README.md"
 license = "MIT"

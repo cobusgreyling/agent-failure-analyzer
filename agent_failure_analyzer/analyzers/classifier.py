@@ -240,8 +240,8 @@ class FailureClassifier:
         ]
         if len(assistant_msgs) >= 3:
             for start in range(len(assistant_msgs) - 2):
-                window = assistant_msgs[start : start + 3]
-                texts = [t[1][:300] for t in window]
+                msg_window = assistant_msgs[start : start + 3]
+                texts = [t[1][:300] for t in msg_window]
                 # Simple similarity: check if messages share >70% of words
                 word_sets = [set(t.lower().split()) for t in texts]
                 if len(word_sets[0]) > 5:
@@ -253,8 +253,8 @@ class FailureClassifier:
                             subcategory=FailureSubcategory.SEMANTIC_LOOP,
                             severity=Severity.MEDIUM,
                             description="Agent produced 3+ semantically similar responses in sequence.",
-                            evidence=[t[:150] for _, t in window],
-                            event_indices=[idx for idx, _ in window],
+                            evidence=[t[:150] for _, t in msg_window],
+                            event_indices=[idx for idx, _ in msg_window],
                             confidence=0.65,
                         ))
                         break
