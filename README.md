@@ -86,7 +86,7 @@ $ afa analyze ./sample_logs/ --cost
 
 Cost Waste Estimation
 ┏━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━┓
-┃ Session                ┃ Total Tokens ┃ Wasted Tokens┃ Waste % ┃ Est. Wasted $┃
+┃ Session                ┃ Total Tokens ┃ Wasted Tokens┃ Waste % ┃ Est. Wasted ┃
 ┡━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━┩
 │ context_overflow       │        1,583 │           23 │      1% │     $0.0002 │
 │ real_world_session     │        8,710 │        7,501 │     86% │     $0.0675 │
