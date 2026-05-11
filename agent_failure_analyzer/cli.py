@@ -47,12 +47,17 @@ def main():
 )
 @click.option("--output", "-o", type=click.Path(), help="Output file path (for JSON format).")
 @click.option("--min-severity", "-s", type=click.Choice(["info", "low", "medium", "high", "critical"]), default="info", help="Minimum severity to display.")
-def analyze(path: str, format: str, output: str | None, min_severity: str):
+@click.option("--llm", is_flag=True, default=False, help="Use Claude LLM for deeper classification (requires ANTHROPIC_API_KEY).")
+@click.option("--llm-auto", is_flag=True, default=False, help="Use LLM only for sessions where heuristics are uncertain.")
+@click.option("--llm-model", default="claude-sonnet-4-6", help="Model for LLM classification.")
+def analyze(path: str, format: str, output: str | None, min_severity: str, llm: bool, llm_auto: bool, llm_model: str):
     """Analyze agent session log(s) for failures.
 
     PATH can be a single log file (.json, .jsonl) or a directory of logs.
     """
-    engine = AnalysisEngine()
+    if llm or llm_auto:
+        console.print("[dim]LLM classification enabled[/dim]")
+    engine = AnalysisEngine(use_llm=llm, llm_auto=llm_auto, llm_model=llm_model)
     p = Path(path)
 
     if p.is_dir():

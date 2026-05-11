@@ -21,13 +21,43 @@ from .classifier import FailureClassifier
 class AnalysisEngine:
     """Main entry point for analyzing agent sessions."""
 
-    def __init__(self, parser: ParserRegistry | None = None) -> None:
+    def __init__(
+        self,
+        parser: ParserRegistry | None = None,
+        use_llm: bool = False,
+        llm_model: str = "claude-sonnet-4-6",
+        llm_api_key: str | None = None,
+        llm_auto: bool = False,
+    ) -> None:
         self.parser = parser or get_parser()
         self.classifier = FailureClassifier()
+        self.use_llm = use_llm
+        self.llm_auto = llm_auto
+        self._llm_classifier = None
+        if use_llm or llm_auto:
+            from .llm_classifier import LLMClassifier
+            self._llm_classifier = LLMClassifier(
+                model=llm_model, api_key=llm_api_key
+            )
 
     def analyze_session(self, session: AgentSession) -> AnalysisResult:
         """Classify failures in a single session."""
         failures = self.classifier.classify(session)
+
+        # Optional LLM pass
+        if self._llm_classifier:
+            run_llm = self.use_llm  # always-on mode
+            if not run_llm and self.llm_auto:
+                from .llm_classifier import needs_llm_review
+                run_llm = needs_llm_review(failures, session)
+
+            if run_llm:
+                try:
+                    from .llm_classifier import merge_failures
+                    llm_failures = self._llm_classifier.classify(session)
+                    failures = merge_failures(failures, llm_failures)
+                except Exception:
+                    pass  # Fall back to heuristic-only
 
         # Calculate risk score (0-1) based on severity distribution
         severity_weights = {

@@ -92,6 +92,42 @@ Opens a browser-based dashboard with:
 - Per-session drill-down with evidence
 - Risk scoring
 
+## LLM-Powered Classification
+
+For deeper analysis beyond heuristics, enable LLM classification using Claude:
+
+```bash
+pip install agent-failure-analyzer[llm]
+export ANTHROPIC_API_KEY=your-key
+
+# Always use LLM for every session
+afa analyze ./logs/ --llm
+
+# Only use LLM when heuristics are uncertain (cost-efficient)
+afa analyze ./logs/ --llm-auto
+
+# Use a specific model
+afa analyze ./logs/ --llm --llm-model claude-opus-4-6
+```
+
+```python
+from agent_failure_analyzer.analyzers.engine import AnalysisEngine
+
+# LLM on every session
+engine = AnalysisEngine(use_llm=True)
+
+# LLM only when heuristics are uncertain
+engine = AnalysisEngine(llm_auto=True)
+```
+
+The LLM classifier catches what heuristics miss:
+- Subtle instruction drift where the agent gradually deviates from the goal
+- Semantic hallucinations embedded in plausible-sounding text
+- Planning failures where individual steps succeed but the approach is wrong
+- Quality issues (technically correct but poor solution)
+
+Uses prompt caching — the taxonomy system prompt is cached across calls, reducing cost for batch analysis.
+
 ## Supported Log Formats
 
 | Framework | Format | Auto-detected |
@@ -104,7 +140,7 @@ Opens a browser-based dashboard with:
 ## How It Works
 
 1. **Parse**: Auto-detect the framework and normalize events into a common model
-2. **Classify**: Pattern-match against 30+ failure subcategories using heuristics
+2. **Classify**: Pattern-match against 30+ failure subcategories using heuristics, optionally enhanced with LLM analysis
 3. **Score**: Calculate risk scores based on severity distribution
 4. **Report**: Output as terminal tables, JSON, or interactive web dashboard
 
