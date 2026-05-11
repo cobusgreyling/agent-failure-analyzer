@@ -1,5 +1,40 @@
 # Agent Failure Analyzer
 
+```
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║       █████╗ ██████╗  █████╗     ╔═══════════════════════════════════╗       ║
+║      ██╔══██╗██╔═══╝ ██╔══██╗    ║  ◉ context_overflow   ██████░░   ║       ║
+║      ███████║█████╗  ███████║    ║  ◉ tool_misuse        █████░░░   ║       ║
+║      ██╔══██║██╔══╝  ██╔══██║    ║  ◉ instruction_drift  ████░░░░   ║       ║
+║      ██║  ██║██║     ██║  ██║    ║  ◉ hallucination      ███░░░░░   ║       ║
+║      ╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝    ║  ◉ loop_repetition    ██░░░░░░   ║       ║
+║                                    ║  ◉ error_cascade      █░░░░░░░   ║       ║
+║      Agent Failure Analyzer        ╚═══════════════════════════════════╝       ║
+║                                                                              ║
+║      Classify and diagnose AI agent session failures                         ║
+║      across frameworks. Heuristic + LLM-powered analysis.                    ║
+║                                                                              ║
+║      ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐                 ║
+║      │  Claude   │  │ LangChain│  │  CrewAI  │  │ Generic  │                 ║
+║      │   Code    │  │ LangSmith│  │          │  │ JSON(L)  │                 ║
+║      └─────┬─────┘  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘                 ║
+║            └──────────────┴───────────────┴──────────────┘                   ║
+║                                    │                                         ║
+║                              ┌─────▼─────┐                                  ║
+║                              │  CLASSIFY  │                                  ║
+║                              │ ◇ heuristic│                                  ║
+║                              │ ◆ LLM pass │                                  ║
+║                              └─────┬─────┘                                  ║
+║                     ┌──────────────┼──────────────┐                          ║
+║               ┌─────▼─────┐  ┌─────▼─────┐  ┌─────▼─────┐                   ║
+║               │ Terminal  │  │   JSON    │  │ Dashboard │                   ║
+║               │  Report   │  │  Export   │  │    Web    │                   ║
+║               └───────────┘  └───────────┘  └───────────┘                   ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+```
+
 Classify and analyze AI agent session failures across frameworks.
 
 ## Overview
