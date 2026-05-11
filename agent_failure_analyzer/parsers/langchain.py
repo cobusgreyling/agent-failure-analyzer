@@ -5,7 +5,6 @@ Handles both LangSmith exported JSON traces and LangChain callback-based logs.
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
 from pathlib import Path
 

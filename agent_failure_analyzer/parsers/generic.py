@@ -5,7 +5,6 @@ Attempts best-effort parsing of any JSON-based agent log.
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
 from pathlib import Path
 

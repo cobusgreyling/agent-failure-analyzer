@@ -31,7 +31,6 @@ from .taxonomy import (
     CATEGORY_DESCRIPTIONS,
     SUBCATEGORY_TO_CATEGORY,
     FailureCategory,
-    FailureSubcategory,
 )
 
 console = Console()
@@ -61,18 +60,48 @@ def main():
 
 @main.command()
 @click.argument("path", type=click.Path(exists=True))
-@click.option("--format", "-f", type=click.Choice(["terminal", "json"]), default="terminal", help="Output format.")
-@click.option("--output", "-o", type=click.Path(), help="Output file path (for JSON format).")
-@click.option("--min-severity", "-s", type=click.Choice(["info", "low", "medium", "high", "critical"]), default="info", help="Minimum severity to display.")
-@click.option("--min-confidence", "-c", type=float, default=0.0, help="Minimum confidence threshold (0.0-1.0).")
-@click.option("--llm", is_flag=True, default=False, help="Use Claude LLM for deeper classification.")
-@click.option("--llm-auto", is_flag=True, default=False, help="Use LLM only when heuristics are uncertain.")
-@click.option("--llm-model", default="claude-sonnet-4-6", help="Model for LLM classification.")
-@click.option("--store", is_flag=True, default=False, help="Persist results to SQLite for trend tracking.")
-@click.option("--cost", is_flag=True, default=False, help="Show cost waste estimation.")
+@click.option(
+    "--format", "-f",
+    type=click.Choice(["terminal", "json", "csv", "html"]),
+    default="terminal", help="Output format.",
+)
+@click.option("--output", "-o", type=click.Path(), help="Output file path.")
+@click.option(
+    "--min-severity", "-s",
+    type=click.Choice(["info", "low", "medium", "high", "critical"]),
+    default="info", help="Minimum severity to display.",
+)
+@click.option(
+    "--min-confidence", "-c", type=float, default=0.0,
+    help="Minimum confidence threshold (0.0-1.0).",
+)
+@click.option("--llm", is_flag=True, default=False, help="Use LLM classification.")
+@click.option(
+    "--llm-auto", is_flag=True, default=False,
+    help="Use LLM only when heuristics are uncertain.",
+)
+@click.option("--llm-model", default="claude-sonnet-4-6", help="LLM model.")
+@click.option(
+    "--store", is_flag=True, default=False,
+    help="Persist results to SQLite for trend tracking.",
+)
+@click.option("--cost", is_flag=True, default=False, help="Show cost estimation.")
+@click.option(
+    "--notify-webhook", envvar="AFA_WEBHOOK_URL",
+    help="Webhook URL for high-risk alerts.",
+)
+@click.option(
+    "--notify-slack", envvar="AFA_SLACK_WEBHOOK_URL",
+    help="Slack webhook URL for alerts.",
+)
+@click.option(
+    "--notify-threshold", type=float, default=0.5,
+    help="Risk threshold for notifications (0.0-1.0).",
+)
 def analyze(path: str, format: str, output: str | None, min_severity: str,
             min_confidence: float, llm: bool, llm_auto: bool, llm_model: str,
-            store: bool, cost: bool):
+            store: bool, cost: bool, notify_webhook: str | None,
+            notify_slack: str | None, notify_threshold: float):
     """Analyze agent session log(s) for failures.
 
     PATH can be a single log file (.json, .jsonl) or a directory of logs.
@@ -94,6 +123,9 @@ def analyze(path: str, format: str, output: str | None, min_severity: str,
         if store:
             _store_batch(batch)
 
+        if notify_webhook or notify_slack:
+            _send_notifications(batch.results, notify_webhook, notify_slack, notify_threshold)
+
         if format == "json":
             json_reporter = JSONReporter()
             if output:
@@ -102,6 +134,22 @@ def analyze(path: str, format: str, output: str | None, min_severity: str,
             else:
                 import json as json_mod
                 click.echo(json_mod.dumps(json_reporter.batch_to_dict(batch), indent=2))
+        elif format == "csv":
+            from .reports.csv_report import CSVReporter
+            csv_reporter = CSVReporter()
+            if output:
+                csv_reporter.write_batch(batch, output)
+                console.print(f"[green]CSV report written to {output}[/green]")
+            else:
+                click.echo(csv_reporter.batch_to_csv(batch))
+        elif format == "html":
+            from .reports.html_report import HTMLReporter
+            html_reporter = HTMLReporter()
+            if output:
+                html_reporter.write_batch(batch, output)
+                console.print(f"[green]HTML report written to {output}[/green]")
+            else:
+                click.echo(html_reporter.batch_to_html(batch))
         else:
             term_reporter = TerminalReporter(console)
             term_reporter.print_batch(batch)
@@ -142,6 +190,44 @@ def analyze(path: str, format: str, output: str | None, min_severity: str,
                 else:
                     import json as json_mod
                     click.echo(json_mod.dumps(json_reporter.batch_to_dict(batch), indent=2))
+        elif format == "csv":
+            from .reports.csv_report import CSVReporter
+            csv_reporter = CSVReporter()
+            if output:
+                if len(results) == 1:
+                    csv_reporter.write_session(results[0], output)
+                else:
+                    batch = engine.analyze_sessions([r.session for r in results])
+                    csv_reporter.write_batch(batch, output)
+                console.print(f"[green]CSV report written to {output}[/green]")
+            else:
+                if len(results) == 1:
+                    import csv as csv_mod
+                    import io
+                    buf = io.StringIO()
+                    w = csv_mod.writer(buf)
+                    w.writerow(csv_reporter.HEADERS)
+                    w.writerows(csv_reporter.result_to_rows(results[0]))
+                    click.echo(buf.getvalue())
+                else:
+                    batch = engine.analyze_sessions([r.session for r in results])
+                    click.echo(csv_reporter.batch_to_csv(batch))
+        elif format == "html":
+            from .reports.html_report import HTMLReporter
+            html_reporter = HTMLReporter()
+            if output:
+                if len(results) == 1:
+                    html_reporter.write_session(results[0], output)
+                else:
+                    batch = engine.analyze_sessions([r.session for r in results])
+                    html_reporter.write_batch(batch, output)
+                console.print(f"[green]HTML report written to {output}[/green]")
+            else:
+                if len(results) == 1:
+                    click.echo(html_reporter.session_to_html(results[0]))
+                else:
+                    batch = engine.analyze_sessions([r.session for r in results])
+                    click.echo(html_reporter.batch_to_html(batch))
         else:
             term_reporter = TerminalReporter(console)
             for result in results:
@@ -151,10 +237,16 @@ def analyze(path: str, format: str, output: str | None, min_severity: str,
 # ── ingest ────────────────────────────────────────────────────────────
 
 @main.command()
-@click.option("--claude-code", "source", flag_value="claude_code", default=True, help="Ingest Claude Code sessions from ~/.claude/projects/.")
-@click.option("--path", type=click.Path(exists=True), help="Additional directory to scan.")
-@click.option("--store", is_flag=True, default=False, help="Persist results to SQLite.")
-@click.option("--min-confidence", "-c", type=float, default=0.0, help="Minimum confidence threshold.")
+@click.option(
+    "--claude-code", "source", flag_value="claude_code", default=True,
+    help="Ingest Claude Code sessions from ~/.claude/projects/.",
+)
+@click.option("--path", type=click.Path(exists=True), help="Additional directory.")
+@click.option("--store", is_flag=True, default=False, help="Persist to SQLite.")
+@click.option(
+    "--min-confidence", "-c", type=float, default=0.0,
+    help="Minimum confidence threshold.",
+)
 def ingest(source: str, path: str | None, store: bool, min_confidence: float):
     """Auto-discover and analyze agent sessions from known locations."""
     from .ingest import discover_claude_code_sessions
@@ -163,13 +255,12 @@ def ingest(source: str, path: str | None, store: bool, min_confidence: float):
     session_files = discover_claude_code_sessions()
 
     if path:
-        from .ingest import discover_all
         extra = [p for p in Path(path).rglob("*") if p.suffix in (".json", ".jsonl")]
         session_files.extend(extra)
 
     if not session_files:
         console.print("[yellow]No session files found.[/yellow]")
-        console.print(f"[dim]Searched: ~/.claude/projects/[/dim]")
+        console.print("[dim]Searched: ~/.claude/projects/[/dim]")
         return
 
     console.print(f"[dim]Found {len(session_files)} log file(s)[/dim]")
@@ -202,9 +293,18 @@ def ingest(source: str, path: str | None, store: bool, min_confidence: float):
 
 @main.command()
 @click.argument("path", type=click.Path(exists=True))
-@click.option("--max-risk", type=float, default=0.5, help="Maximum acceptable risk score (0.0-1.0).")
-@click.option("--max-failures", type=int, default=None, help="Maximum acceptable total failures.")
-@click.option("--min-confidence", "-c", type=float, default=0.0, help="Minimum confidence threshold.")
+@click.option(
+    "--max-risk", type=float, default=0.5,
+    help="Maximum acceptable risk score (0.0-1.0).",
+)
+@click.option(
+    "--max-failures", type=int, default=None,
+    help="Maximum acceptable total failures.",
+)
+@click.option(
+    "--min-confidence", "-c", type=float, default=0.0,
+    help="Minimum confidence threshold.",
+)
 def check(path: str, max_risk: float, max_failures: int | None, min_confidence: float):
     """CI quality gate — exit non-zero if thresholds are exceeded.
 
@@ -293,7 +393,10 @@ def compare(file_a: str, file_b: str):
     fb_count = len(b.failures)
     f_delta = fb_count - fa_count
     delta_style = "red" if f_delta > 0 else "green" if f_delta < 0 else "dim"
-    table.add_row("Failures", str(fa_count), str(fb_count), Text(f"{f_delta:+d}", style=delta_style))
+    table.add_row(
+        "Failures", str(fa_count), str(fb_count),
+        Text(f"{f_delta:+d}", style=delta_style),
+    )
 
     # Outcome
     table.add_row("Outcome", a.session.outcome.value, b.session.outcome.value, "")
@@ -306,7 +409,13 @@ def compare(file_a: str, file_b: str):
     # Tokens
     ta = a.session.total_tokens or 0
     tb = b.session.total_tokens or 0
-    table.add_row("Tokens", f"{ta:,}" if ta else "-", f"{tb:,}" if tb else "-", f"{tb - ta:+,}" if ta or tb else "")
+    token_delta = f"{tb - ta:+,}" if ta or tb else ""
+    table.add_row(
+        "Tokens",
+        f"{ta:,}" if ta else "-",
+        f"{tb:,}" if tb else "-",
+        token_delta,
+    )
 
     console.print(table)
     console.print()
@@ -425,6 +534,61 @@ def trend(days: int):
     store.close()
 
 
+# ── diff ──────────────────────────────────────────────────────────────
+
+@main.command()
+@click.argument("session_id")
+def diff(session_id: str):
+    """Show how a session changed between stored runs.
+
+    Requires previous runs with --store. Shows risk delta,
+    new failures, and resolved failures.
+    """
+    from .storage import AnalysisStore
+
+    store = AnalysisStore()
+    result = store.get_session_diff(session_id)
+
+    if result is None:
+        console.print("[yellow]Need at least 2 stored runs for this session to diff.[/yellow]")
+        store.close()
+        return
+
+    prev = result["previous"]
+    curr = result["current"]
+
+    # Header
+    console.print(f"\n[bold]Session Diff:[/bold] {session_id}")
+    console.print(f"  Previous: {prev['analyzed_at']}  |  Current: {curr['analyzed_at']}\n")
+
+    # Risk delta
+    delta = result["risk_delta"]
+    delta_style = "red" if delta > 0 else "green" if delta < 0 else "dim"
+    console.print(
+        f"  Risk: {prev['risk_score']:.0%} -> {curr['risk_score']:.0%} "
+        f"[{delta_style}]({delta:+.0%})[/{delta_style}]"
+    )
+    console.print(
+        f"  Failures: {prev['failure_count']} -> {curr['failure_count']}"
+    )
+
+    if result["new_failures"]:
+        console.print("\n  [bold red]New failures:[/bold red]")
+        for f in result["new_failures"]:
+            console.print(f"    [red]+ {f}[/red]")
+
+    if result["resolved_failures"]:
+        console.print("\n  [bold green]Resolved:[/bold green]")
+        for f in result["resolved_failures"]:
+            console.print(f"    [green]- {f}[/green]")
+
+    if not result["changed"]:
+        console.print("  [dim]No changes detected.[/dim]")
+
+    console.print()
+    store.close()
+
+
 # ── watch ─────────────────────────────────────────────────────────────
 
 @main.command()
@@ -466,7 +630,10 @@ def watch(path: str, interval: int, store: bool):
                     seen[f] = mtime
 
             if changed:
-                console.print(f"\n[bold yellow]Changes detected:[/bold yellow] {len(changed)} file(s)")
+                console.print(
+                    f"\n[bold yellow]Changes detected:"
+                    f"[/bold yellow] {len(changed)} file(s)"
+                )
                 for cf in changed:
                     console.print(f"  [dim]{cf.name}[/dim]")
 
@@ -516,6 +683,30 @@ def taxonomy():
     console.print(table)
 
 
+# ── tui ───────────────────────────────────────────────────────────────
+
+@main.command()
+@click.argument("path", type=click.Path(exists=True))
+def tui(path: str):
+    """Launch the interactive terminal UI for browsing results.
+
+    Navigate sessions with arrow keys, Enter to view details, q to quit.
+    """
+    from .tui import InteractiveTUI
+
+    engine = AnalysisEngine()
+    p = Path(path)
+
+    if p.is_dir():
+        batch = engine.analyze_directory(p)
+    else:
+        results = engine.analyze_file(p)
+        batch = engine.analyze_sessions([r.session for r in results])
+
+    viewer = InteractiveTUI(batch, console)
+    viewer.run()
+
+
 # ── dashboard ─────────────────────────────────────────────────────────
 
 @main.command()
@@ -534,6 +725,58 @@ def dashboard(path: str, host: str, port: int):
 
     import uvicorn
     uvicorn.run(app, host=host, port=port, log_level="warning")
+
+
+# ── completions ───────────────────────────────────────────────────────
+
+@main.command()
+@click.argument("shell", type=click.Choice(["bash", "zsh", "fish"]))
+def completions(shell: str):
+    """Generate shell completion script.
+
+    Print the completion script to stdout. Source it in your shell config:
+
+    \b
+        # Bash (~/.bashrc)
+        eval "$(afa completions bash)"
+    \b
+        # Zsh (~/.zshrc)
+        eval "$(afa completions zsh)"
+    \b
+        # Fish (~/.config/fish/completions/afa.fish)
+        afa completions fish > ~/.config/fish/completions/afa.fish
+    """
+    import os
+
+    os.environ["_AFA_COMPLETE"] = f"{shell}_source"
+    try:
+        # Click's built-in completion generation
+        main.main(standalone_mode=False)
+    except SystemExit:
+        pass
+    finally:
+        os.environ.pop("_AFA_COMPLETE", None)
+
+
+# ── benchmark ─────────────────────────────────────────────────────────
+
+@main.command()
+@click.option("--json-output", "-o", type=click.Path(), help="Write metrics as JSON.")
+def benchmark(json_output: str | None):
+    """Run the classifier benchmark against hand-labeled samples.
+
+    Measures precision, recall, and F1 against the expected failures
+    defined in benchmarks/labels.json.
+    """
+    from benchmarks.run_benchmark import run_benchmark
+
+    console.print("[bold]Running classifier benchmark...[/bold]\n")
+    metrics = run_benchmark(verbose=True)
+
+    if json_output:
+        import json as json_mod
+        Path(json_output).write_text(json_mod.dumps(metrics, indent=2))
+        console.print(f"\n[green]Metrics written to {json_output}[/green]")
 
 
 # ── helpers ───────────────────────────────────────────────────────────
@@ -575,6 +818,33 @@ def _store_batch(batch) -> None:
     db.save_batch(batch)
     console.print(f"[dim]Stored {batch.total_sessions} result(s) to {db.db_path}[/dim]")
     db.close()
+
+
+def _send_notifications(
+    results: list, webhook: str | None, slack: str | None, threshold: float
+) -> None:
+    """Send webhook/Slack notifications for high-risk results."""
+    from .models import BatchAnalysisResult
+    from .notify import NotifyConfig, notify_batch, should_notify
+
+    config = NotifyConfig(
+        webhook_url=webhook,
+        slack_webhook_url=slack,
+        risk_threshold=threshold,
+    )
+
+    high_risk = [r for r in results if should_notify(r, config)]
+    if not high_risk:
+        return
+
+    # Build a minimal batch for notify_batch
+    batch = BatchAnalysisResult(results=high_risk, total_sessions=len(high_risk))
+    count = notify_batch(batch, config)
+    if count:
+        console.print(
+            f"[dim]Sent {count} notification(s) for"
+            f" {len(high_risk)} high-risk session(s)[/dim]"
+        )
 
 
 if __name__ == "__main__":

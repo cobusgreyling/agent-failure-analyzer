@@ -1,7 +1,6 @@
 """Tests for session discovery / ingestion."""
 
 from pathlib import Path
-from unittest.mock import patch
 
 from agent_failure_analyzer.ingest import (
     discover_all,

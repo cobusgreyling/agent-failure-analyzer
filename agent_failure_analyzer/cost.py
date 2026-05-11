@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .models import AgentSession, AnalysisResult, EventType, FailureInstance
+from .models import AnalysisResult
 
 # Approximate pricing per 1M tokens (input/output) for common models
 MODEL_PRICING: dict[str, tuple[float, float]] = {

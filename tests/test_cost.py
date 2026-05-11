@@ -1,8 +1,9 @@
 """Tests for cost waste estimation."""
 
+from pathlib import Path
+
 from agent_failure_analyzer.analyzers.engine import AnalysisEngine
 from agent_failure_analyzer.cost import CostEstimate, estimate_waste
-from pathlib import Path
 
 SAMPLE_DIR = Path(__file__).parent.parent / "sample_logs"
 

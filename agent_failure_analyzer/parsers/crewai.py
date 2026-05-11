@@ -5,7 +5,6 @@ CrewAI logs task delegations, agent actions, and crew-level outputs.
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -102,7 +101,10 @@ class CrewAIParser(BaseParser):
         events.append(SessionEvent(
             timestamp=timestamp,
             event_type=EventType.SYSTEM,
-            content=f"Task assigned to {task.get('agent', 'unknown')}: {task.get('description', '')}",
+            content=(
+                f"Task assigned to {task.get('agent', 'unknown')}:"
+                f" {task.get('description', '')}"
+            ),
             metadata={"task_id": task.get("id", ""), "agent": task.get("agent", "")},
         ))
 
@@ -113,7 +115,11 @@ class CrewAIParser(BaseParser):
                 event_type=EventType.TOOL_CALL,
                 content=str(tool_call.get("input", "")),
                 tool_name=tool_call.get("tool", tool_call.get("name")),
-                tool_args=tool_call.get("input") if isinstance(tool_call.get("input"), dict) else None,
+                tool_args=(
+                    tool_call.get("input")
+                    if isinstance(tool_call.get("input"), dict)
+                    else None
+                ),
             ))
             if "output" in tool_call or "result" in tool_call:
                 error = tool_call.get("error")

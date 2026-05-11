@@ -1,8 +1,6 @@
 """Tests for the LLM classifier (mocked — no API key needed)."""
 
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 from agent_failure_analyzer.analyzers.llm_classifier import (
     LLMClassifier,
@@ -244,10 +242,12 @@ class TestLLMClassifierParsing:
     def test_parse_invalid_enum_values_skipped(self):
         mock_response = MagicMock()
         mock_block = MagicMock()
-        mock_block.text = '''[
-            {"category": "not_a_real_category", "subcategory": "invalid", "severity": "high", "description": "bad", "confidence": 0.5},
-            {"category": "tool_misuse", "subcategory": "invalid_tool_args", "severity": "medium", "description": "good", "confidence": 0.8}
-        ]'''
+        mock_block.text = (
+            '[{"category": "not_a_real_category", "subcategory": "invalid",'
+            ' "severity": "high", "description": "bad", "confidence": 0.5},'
+            '{"category": "tool_misuse", "subcategory": "invalid_tool_args",'
+            ' "severity": "medium", "description": "good", "confidence": 0.8}]'
+        )
         mock_response.content = [mock_block]
 
         results = LLMClassifier._parse_response(mock_response)

@@ -1,3 +1,3 @@
 """Agent Failure Analyzer - Classify and analyze AI agent session failures."""
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"

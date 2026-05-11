@@ -4,6 +4,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![PyPI version](https://img.shields.io/pypi/v/agent-failure-analyzer.svg)](https://pypi.org/project/agent-failure-analyzer/)
+[![codecov](https://codecov.io/gh/cobusgreyling/agent-failure-analyzer/branch/main/graph/badge.svg)](https://codecov.io/gh/cobusgreyling/agent-failure-analyzer)
 
 ```
 ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -144,6 +145,26 @@ afa trend --days 30
 # Watch directory for changes
 afa watch ./logs/ --interval 5
 
+# Output as CSV or standalone HTML
+afa analyze ./logs/ -f csv -o report.csv
+afa analyze ./logs/ -f html -o report.html
+
+# Interactive TUI mode
+afa tui ./logs/
+
+# Session diffing (requires prior --store runs)
+afa diff <session_id>
+
+# Webhook/Slack notifications on high risk
+afa analyze ./logs/ --notify-webhook https://hooks.example.com/afa
+afa analyze ./logs/ --notify-slack https://hooks.slack.com/services/...
+
+# Run classifier benchmark
+afa benchmark
+
+# Generate shell completions
+eval "$(afa completions bash)"
+
 # Show the failure taxonomy
 afa taxonomy
 
@@ -227,6 +248,8 @@ Uses prompt caching — the taxonomy system prompt is cached across calls, reduc
 | Claude Code | JSONL (session logs) | Yes |
 | LangChain / LangSmith | JSON (traces, runs) | Yes |
 | CrewAI | JSON (crew output) | Yes |
+| AutoGen | JSON / JSONL (conversations) | Yes |
+| OpenAI Assistants | JSON (threads, runs) | Yes |
 | Generic | JSON / JSONL | Fallback |
 
 ## How It Works
@@ -255,6 +278,40 @@ docker build -t afa .
 docker run -v ./logs:/logs afa analyze /logs
 docker run -v ./logs:/logs -p 8080:8080 afa dashboard /logs --host 0.0.0.0
 ```
+
+## Configuration File
+
+Create `.afa.toml` in your project root or home directory:
+
+```toml
+[analysis]
+min_severity = "medium"
+min_confidence = 0.5
+llm_auto = true
+
+[output]
+format = "terminal"
+store = true
+cost = true
+
+[notify]
+slack_webhook_url = "https://hooks.slack.com/services/..."
+threshold = 0.7
+```
+
+CLI flags override config file values. See `.afa.toml.example` for all options.
+
+## Plugin System
+
+Register custom parsers via entry points:
+
+```toml
+# In your package's pyproject.toml
+[project.entry-points."afa.parsers"]
+myframework = "mypackage.parser:MyFrameworkParser"
+```
+
+Your parser class must subclass `BaseParser` and implement `can_parse()` and `parse()`.
 
 ## Trend Tracking
 

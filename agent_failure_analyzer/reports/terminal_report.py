@@ -10,7 +10,6 @@ from rich.text import Text
 from ..models import AnalysisResult, BatchAnalysisResult
 from ..taxonomy import CATEGORY_DESCRIPTIONS, Severity
 
-
 SEVERITY_COLORS = {
     Severity.CRITICAL: "bold red",
     Severity.HIGH: "red",

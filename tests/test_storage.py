@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 from agent_failure_analyzer.analyzers.engine import AnalysisEngine
 from agent_failure_analyzer.storage import AnalysisStore
 

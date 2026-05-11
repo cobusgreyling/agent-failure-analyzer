@@ -1,0 +1,28 @@
+# Agent Failure Analyzer configuration
+# Copy to .afa.toml in your project root or home directory.
+# CLI flags override these values.
+
+[analysis]
+min_severity = "info"       # info, low, medium, high, critical
+min_confidence = 0.0        # 0.0 to 1.0
+llm = false                 # Use LLM for every session
+llm_auto = false            # Use LLM only when heuristics are uncertain
+llm_model = "claude-sonnet-4-6"
+
+[output]
+format = "terminal"         # terminal, json, csv, html
+store = false               # Persist results to SQLite
+cost = false                # Show cost waste estimation
+
+[ci]
+max_risk = 0.5              # Maximum risk score for CI gate
+# max_failures = 10         # Maximum total failures for CI gate
+
+[notify]
+# webhook_url = "https://hooks.example.com/afa"
+# slack_webhook_url = "https://hooks.slack.com/services/..."
+threshold = 0.5             # Risk threshold for notifications
+
+[paths]
+# log_dirs = ["./logs", "/var/log/agents"]
+# db_path = "~/.afa/history.db"

@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 from agent_failure_analyzer.models import AgentFramework, EventType
 from agent_failure_analyzer.parsers import (
     ClaudeCodeParser,

@@ -95,7 +95,10 @@ class FailureClassifier:
                 category=FailureCategory.CONTEXT_OVERFLOW,
                 subcategory=FailureSubcategory.STALE_CONTEXT_POLLUTION,
                 severity=Severity.HIGH,
-                description=f"Session consumed {session.total_tokens:,} tokens — likely context pressure.",
+                description=(
+                    f"Session consumed {session.total_tokens:,} tokens"
+                    " — likely context pressure."
+                ),
                 evidence=[f"Total tokens: {session.total_tokens:,}"],
                 event_indices=[],
                 confidence=0.6,
@@ -124,7 +127,10 @@ class FailureClassifier:
                     category=FailureCategory.TOOL_MISUSE,
                     subcategory=FailureSubcategory.REPEATED_TOOL_FAILURE,
                     severity=Severity.HIGH,
-                    description=f"Tool '{tool_name}' failed {count} times without successful recovery.",
+                    description=(
+                        f"Tool '{tool_name}' failed {count} times"
+                        " without successful recovery."
+                    ),
                     evidence=[
                         events[idx].error_message or events[idx].content[:200]
                         for idx in indices[:3]
@@ -252,7 +258,10 @@ class FailureClassifier:
                             category=FailureCategory.LOOP_REPETITION,
                             subcategory=FailureSubcategory.SEMANTIC_LOOP,
                             severity=Severity.MEDIUM,
-                            description="Agent produced 3+ semantically similar responses in sequence.",
+                            description=(
+                            "Agent produced 3+ semantically similar"
+                            " responses in sequence."
+                        ),
                             evidence=[t[:150] for _, t in msg_window],
                             event_indices=[idx for idx, _ in msg_window],
                             confidence=0.65,
@@ -287,7 +296,10 @@ class FailureClassifier:
                             category=FailureCategory.HALLUCINATION,
                             subcategory=FailureSubcategory.FABRICATED_FILE_PATH,
                             severity=Severity.MEDIUM,
-                            description=f"Agent referenced non-existent file: {path_str or 'unknown'}",
+                            description=(
+                            f"Agent referenced non-existent file:"
+                            f" {path_str or 'unknown'}"
+                        ),
                             evidence=[
                                 event.content[:200],
                                 next_evt.error_message[:200],
@@ -297,11 +309,6 @@ class FailureClassifier:
                         ))
 
         # Fabricated APIs/dependencies in assistant messages
-        api_fabrication_patterns = [
-            r"import\s+(\w+)",  # imports that might not exist
-            r"pip install\s+(\S+)",  # packages
-            r"npm install\s+(\S+)",
-        ]
         for i, event in enumerate(events):
             if event.event_type == EventType.ASSISTANT_MESSAGE:
                 # Check if the assistant suggests a package and it later fails

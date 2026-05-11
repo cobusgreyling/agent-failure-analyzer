@@ -4,7 +4,7 @@ from pathlib import Path
 
 from agent_failure_analyzer.analyzers.classifier import FailureClassifier
 from agent_failure_analyzer.analyzers.engine import AnalysisEngine
-from agent_failure_analyzer.taxonomy import FailureCategory, FailureSubcategory
+from agent_failure_analyzer.taxonomy import FailureCategory
 
 SAMPLE_DIR = Path(__file__).parent.parent / "sample_logs"
 

@@ -1,0 +1,61 @@
+{
+  "claude_code_context_overflow.jsonl": {
+    "expected_failures": [
+      "context_window_exceeded",
+      "verbose_tool_output"
+    ],
+    "expected_categories": [
+      "context_overflow"
+    ],
+    "expected_outcome": "failure",
+    "min_risk": 0.3
+  },
+  "claude_code_tool_loop.jsonl": {
+    "expected_failures": [
+      "identical_action_loop"
+    ],
+    "expected_categories": [
+      "loop_repetition"
+    ],
+    "expected_outcome": "failure",
+    "min_risk": 0.2
+  },
+  "langchain_error_cascade.json": {
+    "expected_failures": [
+      "cascading_tool_errors",
+      "rate_limit_hit"
+    ],
+    "expected_categories": [
+      "error_cascade",
+      "resource_exhaustion"
+    ],
+    "expected_outcome": "failure",
+    "min_risk": 0.3
+  },
+  "crewai_hallucination.json": {
+    "expected_failures": [
+      "fabricated_file_path"
+    ],
+    "expected_categories": [
+      "hallucination"
+    ],
+    "expected_outcome": "failure",
+    "min_risk": 0.2
+  },
+  "generic_mixed_failures.json": {
+    "expected_failures": [
+      "nonexistent_dependency"
+    ],
+    "expected_categories": [
+      "hallucination"
+    ],
+    "expected_outcome": "failure",
+    "min_risk": 0.1
+  },
+  "claude_code_real_world_anonymized.jsonl": {
+    "expected_failures": [],
+    "expected_categories": [],
+    "expected_outcome": "unknown",
+    "min_risk": 0.0
+  }
+}

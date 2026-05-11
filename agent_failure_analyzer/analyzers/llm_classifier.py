@@ -14,15 +14,13 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any
 
-from ..models import AgentSession, EventType, FailureInstance, SessionOutcome
+from ..models import AgentSession, FailureInstance, SessionOutcome
 from ..taxonomy import (
-    CATEGORY_DESCRIPTIONS,
+    SUBCATEGORY_TO_CATEGORY,
     FailureCategory,
     FailureSubcategory,
     Severity,
-    SUBCATEGORY_TO_CATEGORY,
 )
 
 # Build taxonomy reference for the prompt (once, at import time)
@@ -159,7 +157,10 @@ class LLMClassifier:
             messages=[
                 {
                     "role": "user",
-                    "content": f"Analyze this agent session transcript for failures:\n\n{transcript}",
+                    "content": (
+                        "Analyze this agent session transcript"
+                        f" for failures:\n\n{transcript}"
+                    ),
                 }
             ],
         )

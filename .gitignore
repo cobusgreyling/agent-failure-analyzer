@@ -13,3 +13,6 @@ venv/
 *.swp
 *.swo
 .DS_Store
+coverage.xml
+htmlcov/
+.coverage

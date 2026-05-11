@@ -6,11 +6,9 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime
 from pathlib import Path
 
 from .models import AnalysisResult, BatchAnalysisResult
-from .reports.json_report import JSONReporter
 
 DEFAULT_DB_PATH = Path.home() / ".afa" / "history.db"
 
@@ -61,7 +59,6 @@ class AnalysisStore:
 
     def save_result(self, result: AnalysisResult) -> None:
         """Save a single analysis result."""
-        reporter = JSONReporter()
         session = result.session
         failures_json = json.dumps([
             {
@@ -172,6 +169,71 @@ class AnalysisStore:
         conn = self._get_conn()
         cursor = conn.execute("SELECT count(*) as cnt FROM analysis_runs")
         return cursor.fetchone()["cnt"]
+
+    def get_session_history(self, session_id: str) -> list[dict]:
+        """Get all stored runs for a given session ID, ordered by time."""
+        conn = self._get_conn()
+        cursor = conn.execute(
+            """SELECT
+                id, session_id, framework, model, outcome,
+                risk_score, failure_count, total_tokens,
+                failures_json, analyzed_at
+               FROM analysis_runs
+               WHERE session_id = ?
+               ORDER BY analyzed_at""",
+            (session_id,),
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_session_diff(self, session_id: str) -> dict | None:
+        """Compare the two most recent runs for a session.
+
+        Returns a dict with keys: previous, current, risk_delta,
+        new_failures, resolved_failures, and changed.
+        Returns None if fewer than 2 runs exist.
+        """
+        history = self.get_session_history(session_id)
+        if len(history) < 2:
+            return None
+
+        prev = history[-2]
+        curr = history[-1]
+
+        prev_failures = {
+            f["subcategory"]
+            for f in json.loads(prev["failures_json"])
+        }
+        curr_failures = {
+            f["subcategory"]
+            for f in json.loads(curr["failures_json"])
+        }
+
+        return {
+            "previous": prev,
+            "current": curr,
+            "risk_delta": (curr["risk_score"] or 0) - (prev["risk_score"] or 0),
+            "new_failures": sorted(curr_failures - prev_failures),
+            "resolved_failures": sorted(prev_failures - curr_failures),
+            "changed": prev_failures != curr_failures or prev["risk_score"] != curr["risk_score"],
+        }
+
+    def get_regressions(self, days: int = 30) -> list[dict]:
+        """Find sessions that have regressed (risk increased) across runs."""
+        conn = self._get_conn()
+        cursor = conn.execute(
+            """SELECT DISTINCT session_id
+               FROM analysis_runs
+               WHERE analyzed_at >= date('now', ?)
+               GROUP BY session_id
+               HAVING count(*) >= 2""",
+            (f"-{days} days",),
+        )
+        regressions = []
+        for row in cursor.fetchall():
+            diff = self.get_session_diff(row["session_id"])
+            if diff and diff["risk_delta"] > 0:
+                regressions.append(diff)
+        return sorted(regressions, key=lambda d: d["risk_delta"], reverse=True)
 
     def close(self) -> None:
         if self._conn:

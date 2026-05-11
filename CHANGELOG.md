@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.3.0 (2026-05-11)
+
+### New Features
+- **CSV and HTML report formats** — `afa analyze --format csv` and `--format html` for spreadsheet and standalone HTML reports
+- **Plugin system for custom parsers** — register parsers via `afa.parsers` entry point group
+- **AutoGen parser** — support for Microsoft AutoGen conversation logs
+- **OpenAI Assistants parser** — support for OpenAI Assistants API thread/run logs
+- **Session diffing** — `afa diff <session_id>` tracks changes across stored runs, shows regressions
+- **Webhook/Slack notifications** — `--notify-webhook` and `--notify-slack` flags for high-risk alerts
+- **Interactive TUI** — `afa tui <path>` for keyboard-navigable session browsing
+- **OpenTelemetry export** — `pip install agent-failure-analyzer[otel]` for OTLP spans and metrics
+- **Benchmark suite** — `afa benchmark` measures classifier precision/recall against hand-labeled samples
+- **Configuration file** — `.afa.toml` for default settings (analysis, output, CI, notifications)
+- **Shell completions** — `afa completions bash/zsh/fish` generates completion scripts
+- **Code coverage** — CI uploads coverage to Codecov with badge in README
+
+### Improvements
+- CONTRIBUTING.md with dev setup, coding standards, and contribution guide
+- GitHub issue templates (bug report, feature request) and PR template
+- Pre-commit hooks config for ruff and mypy
+- Fixed all ruff lint errors across codebase
+- E501 exemptions for embedded HTML/JS template files
+- Plugin parsers load via entry points, tried before generic fallback
+
 ## v0.2.0 (2026-05-11)
 
 ### New Features
