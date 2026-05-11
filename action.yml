@@ -1,0 +1,103 @@
+name: "Agent Failure Analyzer"
+description: "Analyze AI agent session logs for failures and quality issues"
+author: "Cobus Greyling"
+
+branding:
+  icon: "alert-triangle"
+  color: "red"
+
+inputs:
+  path:
+    description: "Path to log file(s) or directory"
+    required: true
+  max-risk:
+    description: "Maximum acceptable risk score (0.0-1.0)"
+    required: false
+    default: "0.5"
+  max-failures:
+    description: "Maximum acceptable failure count"
+    required: false
+    default: ""
+  min-severity:
+    description: "Minimum severity to report (info, low, medium, high, critical)"
+    required: false
+    default: "info"
+  min-confidence:
+    description: "Minimum confidence threshold (0.0-1.0)"
+    required: false
+    default: "0.0"
+  format:
+    description: "Output format (terminal, json, csv, html, markdown)"
+    required: false
+    default: "terminal"
+  output-file:
+    description: "Path to write report file"
+    required: false
+    default: ""
+  python-version:
+    description: "Python version to use"
+    required: false
+    default: "3.12"
+
+outputs:
+  risk-score:
+    description: "Maximum risk score across all analyzed sessions"
+  failure-count:
+    description: "Total number of failures detected"
+  session-count:
+    description: "Number of sessions analyzed"
+  passed:
+    description: "Whether the quality gate passed (true/false)"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install Agent Failure Analyzer
+      shell: bash
+      run: pip install agent-failure-analyzer
+
+    - name: Run analysis
+      id: analyze
+      shell: bash
+      run: |
+        set +e
+
+        ARGS="--min-severity ${{ inputs.min-severity }}"
+        ARGS="$ARGS --min-confidence ${{ inputs.min-confidence }}"
+
+        if [ -n "${{ inputs.output-file }}" ]; then
+          ARGS="$ARGS --format ${{ inputs.format }} --output ${{ inputs.output-file }}"
+        fi
+
+        afa analyze ${{ inputs.path }} $ARGS 2>&1
+        ANALYZE_EXIT=$?
+
+        # Run check command for gate
+        CHECK_ARGS="--max-risk ${{ inputs.max-risk }}"
+        if [ -n "${{ inputs.max-failures }}" ]; then
+          CHECK_ARGS="$CHECK_ARGS --max-failures ${{ inputs.max-failures }}"
+        fi
+
+        CHECK_OUTPUT=$(afa check ${{ inputs.path }} $CHECK_ARGS 2>&1)
+        CHECK_EXIT=$?
+
+        echo "check-output=$CHECK_OUTPUT" >> "$GITHUB_OUTPUT"
+
+        if [ $CHECK_EXIT -eq 0 ]; then
+          echo "passed=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "passed=false" >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+
+    - name: Upload report artifact
+      if: inputs.output-file != ''
+      uses: actions/upload-artifact@v4
+      with:
+        name: agent-failure-report
+        path: ${{ inputs.output-file }}

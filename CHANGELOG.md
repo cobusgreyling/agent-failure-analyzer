@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.4.0 (2026-05-11)
+
+### New Features
+- **Markdown report format** — `afa analyze --format markdown` for GitHub/Notion-friendly output
+- **PDF report export** — `afa analyze --format pdf` using weasyprint (`pip install agent-failure-analyzer[pdf]`)
+- **Session replay viewer** — `afa replay <path>` for interactive step-by-step event playback
+- **Failure remediation suggestions** — `afa remediate <path>` provides concrete fix suggestions per failure
+- **Multi-session correlation** — `afa correlate <path>` detects recurring patterns across sessions
+- **GitHub Actions reusable action** — `action.yml` for CI/CD integration with quality gates
+- **Grafana dashboard template** — pre-built dashboard for OTLP-exported metrics
+- **Log anonymizer** — `afa anonymize <path>` strips PII, API keys, secrets, and home paths
+- **Real-time streaming analysis** — `afa stream` reads JSONL from stdin for live failure detection
+- **Failure heatmap** — `afa heatmap <path>` shows time-of-day × day-of-week failure patterns
+- **Comparative framework report** — `afa framework-compare <path>` compares frameworks side-by-side
+- **Token budget advisor** — `afa budget <path>` analyzes usage and recommends optimal budgets
+- **Failure fingerprinting** — `afa fingerprint <path>` deduplicates with stable hashes
+- **Export to GitHub Issues** — `afa github-issues <path>` creates issues for high-severity failures
+
+### Improvements
+- PDF format option in analyze command via weasyprint optional dependency
+- 10 new CLI commands for advanced analysis workflows
+- Comprehensive remediation database covering all 30+ failure subcategories
+
 ## v0.3.0 (2026-05-11)
 
 ### New Features

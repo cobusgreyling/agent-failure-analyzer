@@ -1,0 +1,192 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "description": "Agent Failure Analyzer — Monitoring dashboard for OTLP-exported metrics",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "title": "Sessions Analyzed",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(increase(afa_sessions_total[24h]))",
+          "legendFormat": "Sessions (24h)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "value": 0, "color": "blue" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Total Failures",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(increase(afa_failures_total[24h]))",
+          "legendFormat": "Failures (24h)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "value": 0, "color": "green" },
+              { "value": 10, "color": "yellow" },
+              { "value": 50, "color": "red" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Average Risk Score",
+      "type": "gauge",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "avg(afa_risk_score)",
+          "legendFormat": "Avg Risk"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "steps": [
+              { "value": 0, "color": "green" },
+              { "value": 0.3, "color": "yellow" },
+              { "value": 0.5, "color": "orange" },
+              { "value": 0.7, "color": "red" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "High/Critical Failures",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(increase(afa_failures_total{severity=~\"high|critical\"}[24h]))",
+          "legendFormat": "High/Critical (24h)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "value": 0, "color": "green" },
+              { "value": 1, "color": "orange" },
+              { "value": 5, "color": "red" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Failures Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        {
+          "expr": "sum by (category) (increase(afa_failures_total[1h]))",
+          "legendFormat": "{{category}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "stacking": { "mode": "normal" }
+          }
+        }
+      }
+    },
+    {
+      "title": "Risk Score Distribution",
+      "type": "histogram",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        {
+          "expr": "afa_risk_score_bucket",
+          "legendFormat": "{{le}}"
+        }
+      ]
+    },
+    {
+      "title": "Failures by Category",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 12 },
+      "targets": [
+        {
+          "expr": "sum by (category) (increase(afa_failures_total[24h]))",
+          "legendFormat": "{{category}}"
+        }
+      ]
+    },
+    {
+      "title": "Failures by Severity",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 12 },
+      "targets": [
+        {
+          "expr": "sum by (severity) (increase(afa_failures_total[24h]))",
+          "legendFormat": "{{severity}}"
+        }
+      ]
+    },
+    {
+      "title": "Failures by Framework",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 12 },
+      "targets": [
+        {
+          "expr": "sum by (framework) (increase(afa_failures_total[24h]))",
+          "legendFormat": "{{framework}}"
+        }
+      ]
+    },
+    {
+      "title": "Top Failure Subcategories",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "targets": [
+        {
+          "expr": "topk(10, sum by (subcategory) (increase(afa_failures_total[24h])))",
+          "legendFormat": "{{subcategory}}"
+        }
+      ]
+    },
+    {
+      "title": "Sessions by Framework",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "targets": [
+        {
+          "expr": "sum by (framework) (increase(afa_sessions_total[1h]))",
+          "legendFormat": "{{framework}}"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["agent-failure-analyzer", "ai", "agents"],
+  "templating": { "list": [] },
+  "time": { "from": "now-24h", "to": "now" },
+  "title": "Agent Failure Analyzer",
+  "uid": "afa-dashboard"
+}

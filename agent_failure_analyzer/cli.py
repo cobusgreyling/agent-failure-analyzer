@@ -10,6 +10,16 @@ Commands:
     afa watch <path>            Monitor directory and re-analyze on changes
     afa taxonomy                Show the failure taxonomy
     afa dashboard <path>        Launch the web dashboard
+    afa replay <path>           Step through session events interactively
+    afa remediate <path>        Show fix suggestions for detected failures
+    afa correlate <path>        Detect cross-session failure patterns
+    afa anonymize <path>        Strip PII and secrets from logs
+    afa stream                  Real-time streaming analysis from stdin
+    afa heatmap <path>          Show failure time-of-day heatmap
+    afa framework-compare <p>   Compare failure patterns across frameworks
+    afa budget <path>           Token budget advisor
+    afa fingerprint <path>      Deduplicate failures with stable hashes
+    afa github-issues <path>    Export failures as GitHub issues
 """
 
 from __future__ import annotations
@@ -62,7 +72,7 @@ def main():
 @click.argument("path", type=click.Path(exists=True))
 @click.option(
     "--format", "-f",
-    type=click.Choice(["terminal", "json", "csv", "html"]),
+    type=click.Choice(["terminal", "json", "csv", "html", "markdown", "pdf"]),
     default="terminal", help="Output format.",
 )
 @click.option("--output", "-o", type=click.Path(), help="Output file path.")
@@ -150,6 +160,20 @@ def analyze(path: str, format: str, output: str | None, min_severity: str,
                 console.print(f"[green]HTML report written to {output}[/green]")
             else:
                 click.echo(html_reporter.batch_to_html(batch))
+        elif format == "markdown":
+            from .reports.markdown_report import MarkdownReporter
+            md_reporter = MarkdownReporter()
+            if output:
+                md_reporter.write_batch(batch, output)
+                console.print(f"[green]Markdown report written to {output}[/green]")
+            else:
+                click.echo(md_reporter.batch_to_markdown(batch))
+        elif format == "pdf":
+            from .reports.pdf_report import PDFReporter
+            pdf_reporter = PDFReporter()
+            out = output or "report.pdf"
+            pdf_reporter.write_batch(batch, out)
+            console.print(f"[green]PDF report written to {out}[/green]")
         else:
             term_reporter = TerminalReporter(console)
             term_reporter.print_batch(batch)
@@ -228,6 +252,32 @@ def analyze(path: str, format: str, output: str | None, min_severity: str,
                 else:
                     batch = engine.analyze_sessions([r.session for r in results])
                     click.echo(html_reporter.batch_to_html(batch))
+        elif format == "markdown":
+            from .reports.markdown_report import MarkdownReporter
+            md_reporter = MarkdownReporter()
+            if output:
+                if len(results) == 1:
+                    md_reporter.write_session(results[0], output)
+                else:
+                    batch = engine.analyze_sessions([r.session for r in results])
+                    md_reporter.write_batch(batch, output)
+                console.print(f"[green]Markdown report written to {output}[/green]")
+            else:
+                if len(results) == 1:
+                    click.echo(md_reporter.session_to_markdown(results[0]))
+                else:
+                    batch = engine.analyze_sessions([r.session for r in results])
+                    click.echo(md_reporter.batch_to_markdown(batch))
+        elif format == "pdf":
+            from .reports.pdf_report import PDFReporter
+            pdf_reporter = PDFReporter()
+            out = output or "report.pdf"
+            if len(results) == 1:
+                pdf_reporter.write_session(results[0], out)
+            else:
+                batch = engine.analyze_sessions([r.session for r in results])
+                pdf_reporter.write_batch(batch, out)
+            console.print(f"[green]PDF report written to {out}[/green]")
         else:
             term_reporter = TerminalReporter(console)
             for result in results:
@@ -777,6 +827,433 @@ def benchmark(json_output: str | None):
         import json as json_mod
         Path(json_output).write_text(json_mod.dumps(metrics, indent=2))
         console.print(f"\n[green]Metrics written to {json_output}[/green]")
+
+
+# ── replay ────────────────────────────────────────────────────────────
+
+@main.command()
+@click.argument("path", type=click.Path(exists=True))
+def replay(path: str):
+    """Step through session events interactively.
+
+    Navigate with n/p (next/prev), arrow keys, q to quit, a for all.
+    """
+    from .replay import SessionReplay
+
+    engine = AnalysisEngine()
+    results = engine.analyze_file(path)
+
+    if not results:
+        console.print("[yellow]No sessions found.[/yellow]")
+        return
+
+    viewer = SessionReplay(results[0], console)
+    viewer.run()
+
+
+# ── remediate ────────────────────────────────────────────────────────
+
+@main.command()
+@click.argument("path", type=click.Path(exists=True))
+@click.option(
+    "--min-severity", "-s",
+    type=click.Choice(["info", "low", "medium", "high", "critical"]),
+    default="low", help="Minimum severity for suggestions.",
+)
+def remediate(path: str, min_severity: str):
+    """Show remediation suggestions for detected failures.
+
+    Analyzes the session and provides concrete fix suggestions
+    for each failure found.
+    """
+    from .remediation import get_remediation
+
+    engine = AnalysisEngine()
+    results = engine.analyze_file(path)
+    _filter_results(results, min_severity, 0.0)
+
+    if not results:
+        console.print("[yellow]No sessions found.[/yellow]")
+        return
+
+    for result in results:
+        console.print(
+            f"\n[bold]Session:[/bold] {result.session.session_id}"
+        )
+        if not result.failures:
+            console.print("  [green]No failures — no remediation needed.[/green]")
+            continue
+
+        for i, f in enumerate(result.failures, 1):
+            console.print(
+                f"\n  [bold]{i}. [{f.severity.value.upper()}] "
+                f"{f.subcategory.value}[/bold]"
+            )
+            console.print(f"     {f.description[:80]}")
+            suggestions = get_remediation(f.subcategory)
+            for s in suggestions:
+                console.print(f"     [green]→[/green] {s}")
+
+
+# ── correlate ────────────────────────────────────────────────────────
+
+@main.command()
+@click.argument("path", type=click.Path(exists=True))
+def correlate(path: str):
+    """Detect cross-session failure patterns.
+
+    Analyzes multiple sessions to find recurring failures,
+    co-occurring issues, and framework-specific problems.
+    """
+    from .correlation import correlate as run_correlation
+
+    engine = AnalysisEngine()
+    p = Path(path)
+
+    if p.is_dir():
+        batch = engine.analyze_directory(p)
+    else:
+        results = engine.analyze_file(p)
+        batch = engine.analyze_sessions([r.session for r in results])
+
+    report = run_correlation(batch)
+
+    console.print(
+        f"\n[bold]Correlation Analysis:[/bold] "
+        f"{report.total_sessions} sessions\n"
+    )
+
+    if not report.patterns:
+        console.print("[green]No cross-session patterns detected.[/green]")
+        return
+
+    for i, p in enumerate(report.patterns, 1):
+        console.print(
+            f"  [bold]{i}.[/bold] [{p.pattern_type}] {p.description}"
+        )
+        if p.affected_sessions:
+            console.print(
+                f"     [dim]Sessions: "
+                f"{', '.join(p.affected_sessions[:5])}"
+                f"{'...' if len(p.affected_sessions) > 5 else ''}[/dim]"
+            )
+
+    if report.co_occurrence_matrix:
+        console.print("\n[bold]Co-occurrence pairs:[/bold]")
+        shown = set()
+        for a, neighbors in report.co_occurrence_matrix.items():
+            for b, cnt in neighbors.items():
+                pair = tuple(sorted([a, b]))
+                if pair not in shown:
+                    shown.add(pair)
+                    console.print(f"  {pair[0]} ↔ {pair[1]}: {cnt}")
+
+
+# ── anonymize ────────────────────────────────────────────────────────
+
+@main.command()
+@click.argument("path", type=click.Path(exists=True))
+@click.option("--output", "-o", type=click.Path(), help="Output file path.")
+@click.option(
+    "--no-paths", is_flag=True, default=False,
+    help="Skip home directory path redaction.",
+)
+def anonymize(path: str, output: str | None, no_paths: bool):
+    """Strip PII, API keys, and secrets from log files.
+
+    Outputs the anonymized JSON to stdout or a file.
+    """
+    import json as json_mod
+
+    from .anonymizer import anonymize_session
+
+    engine = AnalysisEngine()
+    p = Path(path)
+
+    sessions = engine.parser.parse(p)
+    if not sessions:
+        console.print("[yellow]No sessions found.[/yellow]")
+        return
+
+    anonymized = []
+    total_redactions = 0
+    for session in sessions:
+        clean, stats = anonymize_session(session, redact_paths=not no_paths)
+        anonymized.append(clean.model_dump(mode="json"))
+        total_redactions += stats.total_redactions
+
+    result = json_mod.dumps(anonymized, indent=2, default=str)
+
+    if output:
+        Path(output).write_text(result)
+        console.print(
+            f"[green]Anonymized {len(sessions)} session(s) → {output}[/green]"
+        )
+    else:
+        click.echo(result)
+
+    console.print(
+        f"[dim]{total_redactions} redaction(s) applied[/dim]"
+    )
+
+
+# ── stream ───────────────────────────────────────────────────────────
+
+@main.command()
+@click.option(
+    "--alert-severity", "-s",
+    type=click.Choice(["info", "low", "medium", "high", "critical"]),
+    default="medium", help="Minimum severity for real-time alerts.",
+)
+def stream(alert_severity: str):
+    """Real-time streaming analysis from stdin.
+
+    Pipe agent log events (JSONL) into this command for live failure detection:
+
+    \b
+        cat events.jsonl | afa stream
+        tail -f /var/log/agent.jsonl | afa stream --alert-severity high
+    """
+    from .stream import stream_analyze
+
+    stream_analyze(console=console, alert_severity=alert_severity)
+
+
+# ── heatmap ──────────────────────────────────────────────────────────
+
+@main.command()
+@click.argument("path", type=click.Path(exists=True))
+def heatmap(path: str):
+    """Show failure heatmap by time of day and day of week.
+
+    Reveals temporal patterns — when failures are most likely to occur.
+    """
+    from .heatmap import build_heatmap, print_heatmap
+
+    engine = AnalysisEngine()
+    p = Path(path)
+
+    if p.is_dir():
+        batch = engine.analyze_directory(p)
+    else:
+        results = engine.analyze_file(p)
+        batch = engine.analyze_sessions([r.session for r in results])
+
+    data = build_heatmap(batch)
+    print_heatmap(data, console)
+
+
+# ── framework-compare ────────────────────────────────────────────────
+
+@main.command("framework-compare")
+@click.argument("path", type=click.Path(exists=True))
+def framework_compare(path: str):
+    """Compare failure patterns across agent frameworks.
+
+    Analyzes sessions from multiple frameworks and shows which
+    performs best on failure rate, risk, and token usage.
+    """
+    from .framework_compare import compare_frameworks, print_comparison
+
+    engine = AnalysisEngine()
+    p = Path(path)
+
+    if p.is_dir():
+        batch = engine.analyze_directory(p)
+    else:
+        results = engine.analyze_file(p)
+        batch = engine.analyze_sessions([r.session for r in results])
+
+    report = compare_frameworks(batch)
+    print_comparison(report, console)
+
+
+# ── budget ───────────────────────────────────────────────────────────
+
+@main.command()
+@click.argument("path", type=click.Path(exists=True))
+def budget(path: str):
+    """Analyze token usage and recommend optimal budgets.
+
+    Shows token statistics and suggests budget settings
+    based on actual usage patterns.
+    """
+    from .budget import analyze_budget
+
+    engine = AnalysisEngine()
+    p = Path(path)
+
+    if p.is_dir():
+        batch = engine.analyze_directory(p)
+    else:
+        results = engine.analyze_file(p)
+        batch = engine.analyze_sessions([r.session for r in results])
+
+    advice = analyze_budget(batch)
+
+    table = Table(title="Token Budget Analysis", border_style="blue")
+    table.add_column("Metric", style="bold", width=25)
+    table.add_column("Value", justify="right", width=15)
+
+    table.add_row("Average Tokens", f"{advice.avg_tokens:,}")
+    table.add_row("Median Tokens", f"{advice.median_tokens:,}")
+    table.add_row("P95 Tokens", f"{advice.p95_tokens:,}")
+    table.add_row("Max Tokens", f"{advice.max_tokens:,}")
+    table.add_row(
+        "Recommended Budget",
+        Text(f"{advice.recommended_budget:,}", style="bold green"),
+    )
+    table.add_row("Token Waste", f"{advice.waste_ratio:.0%}")
+    console.print(table)
+
+    if advice.per_framework:
+        console.print("\n[bold]Per-Framework:[/bold]")
+        for fw, stats in advice.per_framework.items():
+            console.print(
+                f"  {fw}: avg={stats['avg']:,}  "
+                f"p95={stats['p95']:,}  "
+                f"({stats['sessions']} sessions)"
+            )
+
+    if advice.suggestions:
+        console.print("\n[bold]Suggestions:[/bold]")
+        for s in advice.suggestions:
+            console.print(f"  [green]→[/green] {s}")
+
+
+# ── fingerprint ──────────────────────────────────────────────────────
+
+@main.command()
+@click.argument("path", type=click.Path(exists=True))
+@click.option(
+    "--json-output", "-o", type=click.Path(),
+    help="Write deduplicated results as JSON.",
+)
+def fingerprint(path: str, json_output: str | None):
+    """Deduplicate failures using stable fingerprints.
+
+    Groups identical failures across sessions and shows occurrence counts.
+    """
+    from .fingerprint import deduplicate_failures
+
+    engine = AnalysisEngine()
+    p = Path(path)
+
+    if p.is_dir():
+        batch = engine.analyze_directory(p)
+        results = batch.results
+    else:
+        results = engine.analyze_file(p)
+
+    dedup = deduplicate_failures(results)
+
+    table = Table(title="Deduplicated Failures", border_style="blue")
+    table.add_column("Fingerprint", style="dim", width=18)
+    table.add_column("Subcategory", width=25)
+    table.add_column("Severity", width=10)
+    table.add_column("Count", justify="right", width=7)
+    table.add_column("Sessions", justify="right", width=10)
+
+    # Sort by occurrence count
+    sorted_fps = sorted(
+        dedup.occurrence_count.items(),
+        key=lambda x: x[1],
+        reverse=True,
+    )
+
+    for fp, count in sorted_fps[:20]:
+        failure = dedup.unique_fingerprints[fp]
+        session_count = len(set(dedup.session_map.get(fp, [])))
+        table.add_row(
+            fp,
+            failure.subcategory.value,
+            failure.severity.value.upper(),
+            str(count),
+            str(session_count),
+        )
+
+    console.print(table)
+    console.print(
+        f"\n[dim]{len(dedup.unique_fingerprints)} unique failures "
+        f"from {sum(dedup.occurrence_count.values())} total[/dim]"
+    )
+
+    if json_output:
+        import json as json_mod
+        output_data = {
+            "unique_count": len(dedup.unique_fingerprints),
+            "total_count": sum(dedup.occurrence_count.values()),
+            "failures": [
+                {
+                    "fingerprint": fp,
+                    "subcategory": dedup.unique_fingerprints[fp].subcategory.value,
+                    "severity": dedup.unique_fingerprints[fp].severity.value,
+                    "description": dedup.unique_fingerprints[fp].description,
+                    "occurrences": dedup.occurrence_count[fp],
+                    "sessions": len(set(dedup.session_map.get(fp, []))),
+                }
+                for fp, _ in sorted_fps
+            ],
+        }
+        Path(json_output).write_text(json_mod.dumps(output_data, indent=2))
+        console.print(f"[green]Written to {json_output}[/green]")
+
+
+# ── github-issues ────────────────────────────────────────────────────
+
+@main.command("github-issues")
+@click.argument("path", type=click.Path(exists=True))
+@click.option("--repo", "-r", required=True, help="GitHub repo (owner/repo).")
+@click.option(
+    "--token", envvar="GITHUB_TOKEN",
+    help="GitHub API token (or set GITHUB_TOKEN env var).",
+)
+@click.option(
+    "--min-severity", "-s",
+    type=click.Choice(["info", "low", "medium", "high", "critical"]),
+    default="high", help="Minimum severity to export.",
+)
+@click.option(
+    "--dry-run", is_flag=True, default=False,
+    help="Preview issues without creating them.",
+)
+def github_issues(path: str, repo: str, token: str | None,
+                  min_severity: str, dry_run: bool):
+    """Export high-severity failures as GitHub issues.
+
+    Creates one issue per qualifying failure with description,
+    evidence, and remediation suggestions.
+    """
+    from .github_export import export_failures_to_issues
+
+    engine = AnalysisEngine()
+    results = engine.analyze_file(path)
+
+    if not results:
+        console.print("[yellow]No sessions found.[/yellow]")
+        return
+
+    total_created = 0
+    for result in results:
+        issue_results = export_failures_to_issues(
+            result, repo, token=token,
+            min_severity=min_severity, dry_run=dry_run,
+        )
+        for ir in issue_results:
+            if ir.success:
+                total_created += 1
+                if dry_run:
+                    console.print(f"  [dim][dry-run] {ir.error}[/dim]")
+                else:
+                    console.print(
+                        f"  [green]Created #{ir.issue_number}:[/green] "
+                        f"{ir.issue_url}"
+                    )
+            else:
+                console.print(f"  [red]Error: {ir.error}[/red]")
+
+    label = "previewed" if dry_run else "created"
+    console.print(f"\n[bold]{total_created} issue(s) {label}[/bold]")
 
 
 # ── helpers ───────────────────────────────────────────────────────────
