@@ -11,6 +11,8 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .analyzers.detector_config import DetectorConfig, detector_config_from_toml
+
 if sys.version_info >= (3, 11):
     import tomllib
 else:
@@ -51,6 +53,9 @@ class AFAConfig:
     # Paths
     log_dirs: list[str] = field(default_factory=list)
     db_path: str | None = None
+
+    # Detector thresholds (overridable via [detector] in .afa.toml)
+    detector: DetectorConfig = field(default_factory=DetectorConfig)
 
 
 def find_config_file() -> Path | None:
@@ -130,5 +135,10 @@ def load_config(path: Path | None = None) -> AFAConfig:
         config.log_dirs = list(paths["log_dirs"])
     if "db_path" in paths:
         config.db_path = paths["db_path"]
+
+    # [detector] section — threshold overrides
+    detector = raw.get("detector", {})
+    if detector:
+        config.detector = detector_config_from_toml(detector)
 
     return config
