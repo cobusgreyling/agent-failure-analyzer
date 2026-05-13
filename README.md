@@ -71,6 +71,15 @@ Each category has granular subcategories and severity levels (critical, high, me
 pip install agent-failure-analyzer
 ```
 
+Optional extras:
+
+```bash
+pip install 'agent-failure-analyzer[dashboard]'  # web dashboard (fastapi/uvicorn)
+pip install 'agent-failure-analyzer[llm]'        # LLM-assisted classification (anthropic)
+pip install 'agent-failure-analyzer[pdf]'        # PDF reports (weasyprint)
+pip install 'agent-failure-analyzer[otel]'       # OpenTelemetry export
+```
+
 Or from source:
 
 ```bash

@@ -24,15 +24,15 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install .[dev]
+          pip install '.[dev,dashboard,llm]'
 
       - name: Lint with ruff
+        if: matrix.python-version == '3.12'
         run: ruff check agent_failure_analyzer/ tests/
 
       - name: Type check with mypy
-        run: |
-          pip install mypy
-          mypy agent_failure_analyzer/ --ignore-missing-imports --no-strict-optional
+        if: matrix.python-version == '3.12'
+        run: mypy agent_failure_analyzer/
 
       - name: Run tests
         run: pytest tests/ -v --cov=agent_failure_analyzer --cov-report=term-missing --cov-report=xml
