@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 
 from ..models import AgentSession
@@ -17,14 +18,15 @@ from .openai_assistants import OpenAIAssistantsParser
 
 def _load_plugin_parsers() -> list[BaseParser]:
     """Load parsers registered via the 'afa.parsers' entry point group."""
+    from importlib.metadata import EntryPoint, entry_points
+
     plugins: list[BaseParser] = []
+    eps: Iterable[EntryPoint]
     if sys.version_info >= (3, 12):
-        from importlib.metadata import entry_points
         eps = entry_points(group="afa.parsers")
     else:
-        from importlib.metadata import entry_points
         all_eps = entry_points()
-        eps = all_eps.get("afa.parsers", [])  # type: ignore[union-attr]
+        eps = all_eps.get("afa.parsers", [])  # type: ignore[attr-defined]
 
     for ep in eps:
         try:

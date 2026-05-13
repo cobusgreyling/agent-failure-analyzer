@@ -769,12 +769,19 @@ def dashboard(path: str, host: str, port: int):
 
     PATH is a directory of log files or a single log file.
     """
-    from .dashboard.app import create_app
+    try:
+        import uvicorn
+
+        from .dashboard.app import create_app
+    except ImportError as exc:
+        console.print(
+            f"[bold red]Dashboard dependencies not installed:[/bold red] {exc.name}\n"
+            "Install with: [cyan]pip install agent-failure-analyzer[dashboard][/cyan]"
+        )
+        sys.exit(1)
 
     app = create_app(Path(path))
     console.print(f"[bold green]Dashboard running at http://{host}:{port}[/bold green]")
-
-    import uvicorn
     uvicorn.run(app, host=host, port=port, log_level="warning")
 
 

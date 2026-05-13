@@ -13,11 +13,8 @@ cd agent-failure-analyzer
 python -m venv .venv
 source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 
-# Install in editable mode with dev dependencies
-pip install -e ".[dev]"
-
-# (Optional) Install LLM classification support
-pip install -e ".[llm]"
+# Install in editable mode with dev dependencies (+ dashboard/llm for full local testing)
+pip install -e ".[dev,dashboard,llm]"
 ```
 
 ## Running Tests
