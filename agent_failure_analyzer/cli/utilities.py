@@ -170,3 +170,27 @@ def github_issues(path: str, repo: str, token: str | None,
     console.print(f"\n[bold]{total_created} issue(s) {label}[/bold]")
 
 
+
+# ── mcp ──────────────────────────────────────────────────────────────
+
+@main.command()
+def mcp():
+    """Run an MCP server exposing the analyzer over stdio.
+
+    Lets MCP-aware clients (Claude Code, Claude Desktop, IDE integrations)
+    call analyze, explain, compare, trend, taxonomy, and remediation as
+    tools. Install the optional dependency first:
+
+    \b
+        pip install 'agent-failure-analyzer[mcp]'
+    """
+    try:
+        from ..mcp_server import run_stdio
+    except ImportError as e:
+        console.print(
+            "[red]MCP support not installed. "
+            "Install with: pip install 'agent-failure-analyzer[mcp]'[/red]"
+        )
+        console.print(f"[dim]{e}[/dim]")
+        raise SystemExit(1) from e
+    run_stdio()

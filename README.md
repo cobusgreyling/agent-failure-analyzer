@@ -253,6 +253,48 @@ Opens a browser-based dashboard with:
 - Per-session drill-down with evidence
 - Risk scoring
 
+## MCP Server
+
+Expose the analyzer as an [MCP](https://modelcontextprotocol.io) server so
+MCP-aware clients (Claude Code, Claude Desktop, IDE integrations) can call
+it directly — "explain why my last session failed", "diff these two runs",
+"what does `tool_misuse` mean" — without leaving the agent.
+
+```bash
+pip install 'agent-failure-analyzer[mcp]'
+afa mcp     # speaks MCP over stdio
+```
+
+Tools exposed:
+
+| Tool | Purpose |
+|---|---|
+| `analyze` | Classify failures in a log file or directory; returns JSON report |
+| `explain` | Detailed explanation + remediation for a specific failure |
+| `compare` | Diff two session logs (risk delta, new/resolved failures) |
+| `trend` | Trend data from the stored SQLite history |
+| `taxonomy` | Full failure taxonomy with descriptions |
+| `remediation` | Fix suggestions for a given subcategory |
+
+### Claude Desktop / Claude Code
+
+Add to your MCP client config (e.g. `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "agent-failure-analyzer": {
+      "command": "afa",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Then in the client:
+
+> "Use the `agent-failure-analyzer` tools to analyze `~/agent-logs/`. Explain the top failure and show me how to fix it."
+
 ## LLM-Powered Classification
 
 For deeper analysis beyond heuristics, enable LLM classification using Claude:

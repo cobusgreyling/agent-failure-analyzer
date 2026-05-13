@@ -25,6 +25,7 @@ Commands:
     afa tui <path>              Interactive TUI report viewer
     afa completions <shell>     Generate shell completion script
     afa benchmark               Run classifier benchmark
+    afa mcp                     Run MCP server over stdio
 """
 
 from __future__ import annotations
