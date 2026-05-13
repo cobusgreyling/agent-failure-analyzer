@@ -35,7 +35,7 @@ def _parse_event(line: str) -> SessionEvent | None:
 
     # Try to detect event type from common field names
     event_type = EventType.SYSTEM
-    role = data.get("role", data.get("type", "")).lower()
+    role = (data.get("role") or data.get("type") or "").lower()
     if role in ("user", "human"):
         event_type = EventType.USER_MESSAGE
     elif role in ("assistant", "ai", "bot"):
