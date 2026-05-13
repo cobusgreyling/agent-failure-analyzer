@@ -1,0 +1,341 @@
+{
+  "category_f1": 0.4,
+  "category_precision": 0.385,
+  "category_recall": 0.417,
+  "per_category": {
+    "context_overflow": {
+      "f1": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "support": 1,
+      "tp": 1
+    },
+    "error_cascade": {
+      "f1": 0.0,
+      "fn": 2,
+      "fp": 1,
+      "precision": 0.0,
+      "recall": 0.0,
+      "support": 2,
+      "tp": 0
+    },
+    "hallucination": {
+      "f1": 0.571,
+      "fn": 1,
+      "fp": 2,
+      "precision": 0.5,
+      "recall": 0.667,
+      "support": 3,
+      "tp": 2
+    },
+    "instruction_drift": {
+      "f1": 0.0,
+      "fn": 1,
+      "fp": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "support": 1,
+      "tp": 0
+    },
+    "loop_repetition": {
+      "f1": 0.5,
+      "fn": 0,
+      "fp": 2,
+      "precision": 0.333,
+      "recall": 1.0,
+      "support": 1,
+      "tp": 1
+    },
+    "planning_failure": {
+      "f1": 0.0,
+      "fn": 1,
+      "fp": 1,
+      "precision": 0.0,
+      "recall": 0.0,
+      "support": 1,
+      "tp": 0
+    },
+    "resource_exhaustion": {
+      "f1": 1.0,
+      "fn": 0,
+      "fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "support": 1,
+      "tp": 1
+    },
+    "tool_misuse": {
+      "f1": 0.0,
+      "fn": 2,
+      "fp": 2,
+      "precision": 0.0,
+      "recall": 0.0,
+      "support": 2,
+      "tp": 0
+    }
+  },
+  "per_file": [
+    {
+      "cat_fn": 0,
+      "cat_fp": 0,
+      "cat_tp": 1,
+      "detected_cats": [
+        "context_overflow"
+      ],
+      "detected_subs": [
+        "context_window_exceeded"
+      ],
+      "expected_cats": [
+        "context_overflow"
+      ],
+      "expected_subs": [
+        "context_window_exceeded",
+        "verbose_tool_output"
+      ],
+      "file": "claude_code_context_overflow.jsonl",
+      "min_risk_met": true,
+      "risk_score": 0.333,
+      "sub_fn": 1,
+      "sub_fp": 0,
+      "sub_tp": 1
+    },
+    {
+      "cat_fn": 0,
+      "cat_fp": 2,
+      "cat_tp": 1,
+      "detected_cats": [
+        "hallucination",
+        "loop_repetition",
+        "tool_misuse"
+      ],
+      "detected_subs": [
+        "fabricated_file_path",
+        "identical_action_loop",
+        "invalid_tool_args",
+        "repeated_tool_failure",
+        "retry_without_change"
+      ],
+      "expected_cats": [
+        "loop_repetition"
+      ],
+      "expected_subs": [
+        "identical_action_loop"
+      ],
+      "file": "claude_code_tool_loop.jsonl",
+      "min_risk_met": true,
+      "risk_score": 0.467,
+      "sub_fn": 0,
+      "sub_fp": 4,
+      "sub_tp": 1
+    },
+    {
+      "cat_fn": 1,
+      "cat_fp": 0,
+      "cat_tp": 1,
+      "detected_cats": [
+        "resource_exhaustion"
+      ],
+      "detected_subs": [
+        "rate_limit_hit"
+      ],
+      "expected_cats": [
+        "error_cascade",
+        "resource_exhaustion"
+      ],
+      "expected_subs": [
+        "cascading_tool_errors",
+        "rate_limit_hit"
+      ],
+      "file": "langchain_error_cascade.json",
+      "min_risk_met": true,
+      "risk_score": 0.467,
+      "sub_fn": 1,
+      "sub_fp": 0,
+      "sub_tp": 1
+    },
+    {
+      "cat_fn": 0,
+      "cat_fp": 0,
+      "cat_tp": 1,
+      "detected_cats": [
+        "hallucination"
+      ],
+      "detected_subs": [
+        "fabricated_file_path"
+      ],
+      "expected_cats": [
+        "hallucination"
+      ],
+      "expected_subs": [
+        "fabricated_file_path"
+      ],
+      "file": "crewai_hallucination.json",
+      "min_risk_met": true,
+      "risk_score": 0.267,
+      "sub_fn": 0,
+      "sub_fp": 0,
+      "sub_tp": 1
+    },
+    {
+      "cat_fn": 0,
+      "cat_fp": 2,
+      "cat_tp": 1,
+      "detected_cats": [
+        "error_cascade",
+        "hallucination",
+        "loop_repetition"
+      ],
+      "detected_subs": [
+        "identical_action_loop",
+        "misinterpreted_error",
+        "nonexistent_dependency",
+        "retry_without_change"
+      ],
+      "expected_cats": [
+        "hallucination"
+      ],
+      "expected_subs": [
+        "nonexistent_dependency"
+      ],
+      "file": "generic_mixed_failures.json",
+      "min_risk_met": true,
+      "risk_score": 0.571,
+      "sub_fn": 0,
+      "sub_fp": 3,
+      "sub_tp": 1
+    },
+    {
+      "cat_fn": 0,
+      "cat_fp": 2,
+      "cat_tp": 0,
+      "detected_cats": [
+        "hallucination",
+        "tool_misuse"
+      ],
+      "detected_subs": [
+        "fabricated_file_path",
+        "invalid_tool_args",
+        "repeated_tool_failure"
+      ],
+      "expected_cats": [],
+      "expected_subs": [],
+      "file": "claude_code_real_world_anonymized.jsonl",
+      "min_risk_met": true,
+      "risk_score": 0.46,
+      "sub_fn": 0,
+      "sub_fp": 3,
+      "sub_tp": 0
+    },
+    {
+      "cat_fn": 1,
+      "cat_fp": 0,
+      "cat_tp": 0,
+      "detected_cats": [],
+      "detected_subs": [],
+      "expected_cats": [
+        "planning_failure"
+      ],
+      "expected_subs": [
+        "overambitious_plan",
+        "skipped_steps"
+      ],
+      "file": "claude_code_real_planning_failure.jsonl",
+      "min_risk_met": false,
+      "risk_score": 0.0,
+      "sub_fn": 2,
+      "sub_fp": 0,
+      "sub_tp": 0
+    },
+    {
+      "cat_fn": 1,
+      "cat_fp": 0,
+      "cat_tp": 0,
+      "detected_cats": [],
+      "detected_subs": [],
+      "expected_cats": [
+        "instruction_drift"
+      ],
+      "expected_subs": [
+        "constraint_violated"
+      ],
+      "file": "claude_code_real_instruction_drift.jsonl",
+      "min_risk_met": false,
+      "risk_score": 0.0,
+      "sub_fn": 1,
+      "sub_fp": 0,
+      "sub_tp": 0
+    },
+    {
+      "cat_fn": 2,
+      "cat_fp": 0,
+      "cat_tp": 0,
+      "detected_cats": [],
+      "detected_subs": [],
+      "expected_cats": [
+        "hallucination",
+        "tool_misuse"
+      ],
+      "expected_subs": [
+        "fabricated_fact",
+        "invalid_tool_args"
+      ],
+      "file": "langchain_real_hallucination_and_loop.json",
+      "min_risk_met": false,
+      "risk_score": 0.0,
+      "sub_fn": 2,
+      "sub_fp": 0,
+      "sub_tp": 0
+    },
+    {
+      "cat_fn": 1,
+      "cat_fp": 0,
+      "cat_tp": 0,
+      "detected_cats": [],
+      "detected_subs": [],
+      "expected_cats": [
+        "error_cascade"
+      ],
+      "expected_subs": [
+        "cascading_tool_errors",
+        "misinterpreted_error"
+      ],
+      "file": "autogen_real_error_cascade.json",
+      "min_risk_met": false,
+      "risk_score": 0.0,
+      "sub_fn": 2,
+      "sub_fp": 0,
+      "sub_tp": 0
+    },
+    {
+      "cat_fn": 1,
+      "cat_fp": 2,
+      "cat_tp": 0,
+      "detected_cats": [
+        "loop_repetition",
+        "planning_failure"
+      ],
+      "detected_subs": [
+        "no_plan",
+        "retry_without_change"
+      ],
+      "expected_cats": [
+        "tool_misuse"
+      ],
+      "expected_subs": [
+        "repeated_tool_failure",
+        "tool_not_found"
+      ],
+      "file": "openai_assistants_code_interpreter.json",
+      "min_risk_met": true,
+      "risk_score": 0.183,
+      "sub_fn": 2,
+      "sub_fp": 2,
+      "sub_tp": 0
+    }
+  ],
+  "subcategory_f1": 0.303,
+  "subcategory_precision": 0.294,
+  "subcategory_recall": 0.312
+}
