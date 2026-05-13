@@ -15,6 +15,7 @@ from ..models import (
 )
 from ..parsers.registry import ParserRegistry, get_parser
 from .classifier import FailureClassifier
+from .detector_config import DetectorConfig
 
 
 class AnalysisEngine:
@@ -27,9 +28,10 @@ class AnalysisEngine:
         llm_model: str = "claude-sonnet-4-6",
         llm_api_key: str | None = None,
         llm_auto: bool = False,
+        detector_config: DetectorConfig | None = None,
     ) -> None:
         self.parser = parser or get_parser()
-        self.classifier = FailureClassifier()
+        self.classifier = FailureClassifier(config=detector_config)
         self.use_llm = use_llm
         self.llm_auto = llm_auto
         self._llm_classifier = None

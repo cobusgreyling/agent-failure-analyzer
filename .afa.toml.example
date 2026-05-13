@@ -26,3 +26,17 @@ threshold = 0.5             # Risk threshold for notifications
 [paths]
 # log_dirs = ["./logs", "/var/log/agents"]
 # db_path = "~/.afa/history.db"
+
+[detector]
+# Numeric thresholds for the heuristic classifier. Defaults shown.
+# verbose_tool_output_chars = 5000
+# verbose_tool_output_count = 3
+# total_tokens_threshold = 150000
+# repeated_tool_failure_count = 3
+# identical_loop_window = 3
+# semantic_loop_overlap_ratio = 0.7
+# error_cascade_min_streak = 3
+# overambitious_tool_calls = 20
+# overambitious_error_rate = 0.4
+# no_plan_first_n = 5
+# no_plan_tool_threshold = 3
