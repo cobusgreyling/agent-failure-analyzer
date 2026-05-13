@@ -307,6 +307,61 @@ Uses prompt caching — the taxonomy system prompt is cached across calls, reduc
 3. **Score**: Calculate risk scores based on severity distribution
 4. **Report**: Output as terminal tables, JSON, or interactive web dashboard
 
+### Heuristic limitations
+
+The built-in classifier is intentionally simple: it matches keywords against
+error messages and tool results (in English), counts tool retries, looks at
+token totals, and inspects event sequences. It does **not** reason about
+intent. As a result it will:
+
+- Miss failures that don't surface as an error string (silent stalls,
+  semantically-wrong tool arguments that don't throw).
+- Miss non-English error messages.
+- Over-fire on benign retries (e.g. exponential-backoff that ultimately succeeds).
+- Misclassify any failure mode that isn't already in the keyword tables in
+  `agent_failure_analyzer/analyzers/classifier.py`.
+
+Treat heuristic output as a fast, free triage signal — useful for CI gates
+and dashboards, **not** as ground truth. See [`benchmarks/LABELING.md`](benchmarks/LABELING.md)
+for the labeled corpus we measure against and current F1 in CI.
+
+### LLM-assisted classification
+
+`--llm` always runs the LLM classifier in addition to heuristics. `--llm-auto`
+runs the LLM only when heuristics are likely insufficient. The auto-trigger
+fires when (any of):
+
+- The session outcome is `failure`/`abandoned` and heuristics found nothing.
+- The session outcome is `failure`/`abandoned` and *every* heuristic finding
+  has confidence below 0.6.
+- The session has more than 20 events and heuristics found nothing (subtle
+  failures often hide in long, "successful-looking" traces).
+
+When both heuristic and LLM agree on a subcategory, the higher-confidence
+finding wins; LLM-only findings are kept and tagged.
+
+### Risk score
+
+`risk_score ∈ [0.0, 1.0]` is a single number per session, derived as:
+
+```
+weights = {critical: 1.0, high: 0.7, medium: 0.4, low: 0.15, info: 0.05}
+weighted_avg = sum(weights[f.severity] for f in failures) / len(failures)
+volume_factor = min(len(failures) / 3, 1.0)
+risk_score = min(1.0, weighted_avg * volume_factor)
+```
+
+In practice:
+
+- 1 critical failure → 0.33 (high severity but low volume)
+- 3+ critical failures → 1.00 (saturates)
+- 3 medium failures → 0.40
+- No failures → 0.00
+
+`afa check --max-risk 0.5` and `--notify-threshold` use this score. Calibrate
+the threshold against your own logs — the default 0.5 is a starting point, not
+a universal truth.
+
 ## CI/CD Integration
 
 Use `afa check` as a quality gate in your pipelines:
