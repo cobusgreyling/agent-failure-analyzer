@@ -37,9 +37,9 @@ jobs:
       - name: Run tests
         run: pytest tests/ -v --cov=agent_failure_analyzer --cov-report=term-missing --cov-report=xml
 
-      - name: Run benchmark
+      - name: Run benchmark (regression check vs baseline)
         if: matrix.python-version == '3.12'
-        run: python -m benchmarks.run_benchmark
+        run: python -m benchmarks.run_benchmark --baseline
 
       - name: Upload coverage
         if: matrix.python-version == '3.12'
