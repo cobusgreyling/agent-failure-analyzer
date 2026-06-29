@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### New Features
+- **MCP server** — `afa mcp` exposes the analyzer over the Model Context Protocol. Lets Claude Code, Claude Desktop, and other MCP clients call `analyze`, `explain`, `compare`, `trend`, `taxonomy`, and `remediation` as tools. Install with `pip install 'agent-failure-analyzer[mcp]'`.
+
 ## v0.4.0 (2026-05-11)
 
 ### New Features

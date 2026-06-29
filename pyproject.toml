@@ -43,6 +43,9 @@ otel = [
     "opentelemetry-sdk>=1.24",
     "opentelemetry-exporter-otlp-proto-grpc>=1.24",
 ]
+mcp = [
+    "mcp>=1.0",
+]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
